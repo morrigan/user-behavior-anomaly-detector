@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import array
 import json
+from tensorflow.python.platform import gfile
 
 # Constants
 FLAGS = tf.flags.FLAGS
@@ -21,6 +22,10 @@ tf.flags.DEFINE_integer("min_word_frequency", 5, "Minimum frequency of words in 
 tf.flags.DEFINE_integer("max_sentence_len", 200, "Maximum Sentence Length")
 
 TRAIN_PATH = os.path.join(FLAGS.input_dir, "train.json")
+TEST_PATH = os.path.join(FLAGS.input_dir, "test_2017-03-28.json")  #test.data
+
+CURRENT_PATH = TEST_PATH
+
 #
 def tokenizer_fn(iterator):
   return (x.split(" ") for x in iterator)
@@ -37,7 +42,7 @@ def json_dict_to_string(dictionary):
 def create_vocabulary():
     print("Creating vocabulary...")
 
-    iter_generator = create_iter_generator(TRAIN_PATH)
+    iter_generator = create_iter_generator(CURRENT_PATH)
     input_iter = []
     for x in iter_generator:
         column = json_dict_to_string(x)
@@ -72,7 +77,7 @@ def create_tfrecords_file(input_filename, output_filename, example_fn):
   print("Creating TFRecords file at {}...".format(output_filename))
   for i, row in enumerate(create_iter_generator(input_filename)):
       column = json_dict_to_string(row)
-      output_row = {'action': row["action"] + " " + column, 'label': "1.0" }  # Hardcoded label
+      output_row = {'action': row["action"] + " " + column, 'label': "1" }  # Hardcoded label
       x = example_fn(output_row)
       writer.write(x.SerializeToString())
 
@@ -105,16 +110,17 @@ def create_example_train(row, vocab):
 
 
 if __name__ == "__main__":
-    vocabulary = create_vocabulary()
+    #vocabulary = create_vocabulary()
+    vocabulary = tf.contrib.learn.preprocessing.VocabularyProcessor.restore("./data/vocab_processor.bin")
 
     # Create vocabulary.txt file
-    write_vocabulary(vocabulary, os.path.join(FLAGS.output_dir, "vocabulary.txt"))
+    #write_vocabulary(vocabulary, os.path.join(FLAGS.output_dir, "vocabulary.txt"))
 
     # Save vocab processor
-    vocabulary.save(os.path.join(tf.flags.FLAGS.output_dir, "vocab_processor.bin"))
+    #vocabulary.save(os.path.join(tf.flags.FLAGS.output_dir, "vocab_processor.bin"))
 
     # Create train.tfrecords
     create_tfrecords_file(
-        input_filename=TRAIN_PATH,
-        output_filename=os.path.join(tf.flags.FLAGS.output_dir, "train.tfrecords"),
+        input_filename=CURRENT_PATH,
+        output_filename=os.path.join(tf.flags.FLAGS.output_dir, "test2.tfrecords"),
         example_fn=functools.partial(create_example_train, vocab=vocabulary))
