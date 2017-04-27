@@ -23,10 +23,10 @@ tf.flags.DEFINE_integer("min_word_frequency", 1, "Minimum frequency of words in 
 tf.flags.DEFINE_integer("max_sentence_len", 30, "Maximum Sentence Length in words")
 
 TRAIN_PATH = os.path.join(FLAGS.input_dir, "merged.json")
-TEST_PATH = os.path.join(FLAGS.input_dir, "test.json")
+TEST_PATH = os.path.join(FLAGS.input_dir, "primjer.json")
 
-CURRENT_PATH = TRAIN_PATH
-OUTPUT_FILE = "merged.csv"
+CURRENT_PATH = TEST_PATH
+OUTPUT_FILE = "primjer.csv"
 
 #
 def tokenizer_fn(iterator):
