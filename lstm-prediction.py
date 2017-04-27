@@ -1,3 +1,5 @@
+from keras.callbacks import ModelCheckpoint
+
 import helpers
 import numpy
 import math
@@ -31,8 +33,13 @@ def collection_values_to_array(dataset):
 
 	return numpy.array(new_dataset)
 
-max_vector_length = 30
 
+# Parameters
+max_vector_length = 30
+hidden_layers = 4	# memory units
+dropout = 0.2	# 20% probability
+weights_file = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+###################
 
 # Create datasets
 train_dataset = pandas.read_csv("./data/test.csv", delimiter=';', engine='python')
@@ -51,8 +58,10 @@ trainX.reshape(-1, max_vector_length)
 testX.reshape(-1, max_vector_length)
 
 scaler = MinMaxScaler(feature_range=(0, 1))
-trainX = scaler.fit_transform(trainX)
-testX = scaler.fit_transform(testX)
+dataset = numpy.concatenate((trainX, testX), axis=0)
+trainX_length = len(trainX)
+dataset = scaler.fit_transform(dataset)
+trainX, testX = dataset[0:trainX_length,:], dataset[trainX_length:len(dataset),:]
 
 #assert(test_dataset_array.ndim == 2)
 
@@ -63,7 +72,7 @@ testX = scaler.fit_transform(testX)
 #testX = test_dataset_array[:,0]
 
 # For predicting
-look_back = 1
+look_back = 1	# Doesn't work yet with others
 trainX, trainY = convert_dataset(trainX, look_back)
 testX, testY = convert_dataset(testX, look_back)
 
@@ -73,27 +82,31 @@ testX, testY = convert_dataset(testX, look_back)
 
 
 # Create and fit the LSTM network
-embedding_vecor_length = 64
-samples = 264080
-hidden_layers = 4
-max_features = 64122
-embedding_size = 64
-
-in_out_neurons = 30
-hidden_neurons = 300
-vector_len = 30
-
 model = Sequential()
-model.add(LSTM(3, input_shape=(look_back, max_vector_length)))
+model.add(LSTM(hidden_layers, input_shape=(look_back, max_vector_length)))
 model.add(Dense(max_vector_length))
+#model.load_weights(weights_file)
 model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
-model.fit(trainX, trainY, epochs=1, batch_size=1, verbose=2)
 
 model.summary()
+
+# define the checkpoint for saving weights
+checkpoint = ModelCheckpoint(weights_file, monitor='loss', verbose=1, save_best_only=True, mode='min')
+callbacks_list = [checkpoint]
+
+# fit the model
+model.fit(trainX, trainY, epochs=1, batch_size=100, verbose=2)
+
 
 # make predictions
 trainPredict = model.predict(trainX)
 testPredict = model.predict(testX)
+
+#plot_model(model, to_file='model.png')	# Visualize layers
+
+
+print testPredict
+print '----------'
 
 # invert predictions
 trainPredict = scaler.inverse_transform(trainPredict)
@@ -101,28 +114,6 @@ trainY = scaler.inverse_transform(trainY)
 testPredict = scaler.inverse_transform(testPredict)
 testY = scaler.inverse_transform(testY)
 
-# calculate root mean squared error
-#rmse = numpy.sqrt(((testPredict - trainY) ** 2).mean(axis=0))
-print trainY
-print '-----------'
-print trainPredict[0]
-print '-----------'
-print trainPredict[:,0]
-
-trainScore = math.sqrt(mean_squared_error(trainY[0], trainPredict[:,0]))
-print('Train Score: %.2f RMSE' % (trainScore))
-testScore = math.sqrt(mean_squared_error(testY[0], testPredict[:,0]))
-print('Test Score: %.2f RMSE' % (testScore))
-# shift train predictions for plotting
-trainPredictPlot = numpy.empty_like(dataset)
-trainPredictPlot[:, :] = numpy.nan
-trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
-# shift test predictions for plotting
-testPredictPlot = numpy.empty_like(dataset)
-testPredictPlot[:, :] = numpy.nan
-testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
-# plot baseline and predictions
-plt.plot(scaler.inverse_transform(dataset))
-plt.plot(trainPredictPlot)
-plt.plot(testPredictPlot)
-plt.show()
+print testPredict
+print '----------'
+print testY
