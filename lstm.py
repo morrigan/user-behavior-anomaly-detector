@@ -1,11 +1,8 @@
-from keras.callbacks import ModelCheckpoint
-
 import helpers
 import numpy
-import math
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
-from keras.models import Sequential
+from keras.models import Sequential, model_from_json
 from keras.layers import LSTM, Dense, Activation, Reshape
 from keras.layers.embeddings import Embedding
 from keras.layers import advanced_activations
@@ -37,11 +34,41 @@ def visualize_model_training(history):
 	plt.legend(['train', 'test'], loc='upper left')
 	plt.show()
 
+def save_model(model):
+	# serialize model to JSON
+	model_json = model.to_json()
+	with open("model.json", "w") as json_file:
+		json_file.write(model_json)
+
+	# serialize weights to HDF5
+	model.save_weights("model.h5")
+	print("Saved model to disk")
+
+def create_model():
+	model = Sequential()
+	model.add(LSTM(hidden_layers, input_shape=(look_back, max_vector_length)))
+	model.add(Dense(max_vector_length))
+	model.add(advanced_activations.LeakyReLU(alpha=0))
+
+	return model
+
+def load_model():
+	# load json and create model
+	json_file = open('model.json', 'r')
+	loaded_model_json = json_file.read()
+	json_file.close()
+	loaded_model = model_from_json(loaded_model_json)
+
+	# load weights into new model
+	loaded_model.load_weights("model.h5")
+	print("Loaded model from disk")
+	return loaded_model
 
 # Parameters
+load_existing_model = False
 max_vector_length = 30	# "features"
 hidden_layers = 4	# memory units
-dropout = 0.2	# 20% probability
+dropout = 0.2
 weights_file = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
 ###################
 
@@ -53,7 +80,7 @@ test_dataset = pandas.read_csv("./data/primjer.csv", delimiter=';', engine='pyth
 train_dataset_array = helpers.collection_values_to_array(train_dataset)
 test_dataset_array = helpers.collection_values_to_array(test_dataset)
 
-# Padding (from left)
+# Padding (from left, otherwise results are affected in Keras)
 trainX = sequence.pad_sequences(train_dataset_array, maxlen=max_vector_length, padding='pre')
 testX = sequence.pad_sequences(test_dataset_array, maxlen=max_vector_length, padding='pre')
 
@@ -89,27 +116,23 @@ testX, testY = helpers.convert_dataset(testX, look_back)
 #trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
 #testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
 
-
-# Create and fit the LSTM network
-model = Sequential()
-model.add(LSTM(hidden_layers, input_shape=(look_back, max_vector_length)))
-model.add(Dense(max_vector_length))
-model.add(advanced_activations.LeakyReLU(alpha=0))
-#model.load_weights(weights_file)
+# LSTM network
+if (load_existing_model == True):
+	model = load_model()
+else:
+	model = create_model()
 model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
-
 model.summary()
 
-## Define callbacks
-
-# Save weights
-#checkpoint = callbacks.ModelCheckpoint(weights_file, monitor='loss', verbose=1, save_best_only=True, mode='min')
-#callbacks_list = [checkpoint]
-# Tensorboard
+# Tensorboard callback
 #tbCallBack = callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
 
 # Fit the model
 history = model.fit(trainX, trainY, epochs=1, batch_size=24, verbose=2, callbacks=[])
+
+# Save current model if existing is not loaded
+if (load_existing_model == False):
+	save_model(model)
 
 # Make predictions
 trainPredict = model.predict(trainX)
