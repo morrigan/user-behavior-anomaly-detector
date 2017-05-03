@@ -9,17 +9,7 @@ from keras.layers import LSTM
 from keras.layers.embeddings import Embedding
 from keras.preprocessing import sequence
 from keras.utils import plot_model
-
-
 import pandas
-
-def create_train_dataset():
-    actions, lengths, labels = helpers.read_data("./data/train.tfrecords")
-    return actions, labels
-
-def create_test_dataset():
-    actions, _, labels = helpers.read_data("./data/test.tfrecords")
-    return actions, labels
 
 # Convert an array of values into a dataset matrix
 def convert_dataset(dataset, look_back = 3):
@@ -41,8 +31,8 @@ def collection_values_to_array(dataset):
 	return numpy.array(new_dataset)
 
 # Create datasets
-train_dataset = pandas.read_csv("./data/train_all_1.csv", delimiter=';', engine='python')
-test_dataset = pandas.read_csv("./data/test_all_1.csv", delimiter=';', engine='python')
+train_dataset = pandas.read_csv("./data/merged.csv", delimiter=';', engine='python')
+test_dataset = pandas.read_csv("./data/test.csv", delimiter=';', engine='python')
 
 train_dataset_array = collection_values_to_array(train_dataset)
 test_dataset_array = collection_values_to_array(test_dataset)

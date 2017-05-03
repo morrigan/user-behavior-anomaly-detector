@@ -45,6 +45,8 @@ plt.contourf(xx, yy, Z, levels=np.linspace(Z.min(), 0, 7), cmap=plt.cm.PuBu)
 a = plt.contour(xx, yy, Z, levels=[0], linewidths=2, colors='darkred')
 plt.contourf(xx, yy, Z, levels=[0, Z.max()], colors='palevioletred')
 
+print X_train
+
 s = 40
 b1 = plt.scatter(X_train[:, 0], X_train[:, 1], c='white', s=s)
 b2 = plt.scatter(X_test[:, 0], X_test[:, 1], c='blueviolet', s=s)

@@ -1,7 +1,7 @@
 import np
 import random
 import tensorflow as tf
-import types
+import numpy
 
 def read_data(filename):
     actions = []
@@ -63,4 +63,26 @@ def linear(input_, output_size, layer_scope, stddev=0.02, bias_start=0.0):
         bias = tf.get_variable("bias", [output_size],
             initializer=tf.constant_initializer(bias_start))
         return tf.matmul(input_, matrix) + bias
+
+
+# Convert an array of values into a dataset matrix
+def convert_dataset(dataset, look_back = 3):
+	dataX, dataY = [], []
+	for i in range(len(dataset) - look_back - 1):
+		a = dataset[i:(i + look_back)]
+		b = dataset[i + look_back]
+		dataX.append(a)
+		dataY.append(b)
+	return numpy.array(dataX), numpy.array(dataY)
+
+
+def collection_values_to_array(dataset):
+	dataset = numpy.array(dataset)
+	new_dataset = []
+	for row in dataset:
+		row_array = numpy.array(eval(row[0]))
+		new_dataset.append(row_array)
+
+	return numpy.array(new_dataset)
+
 
