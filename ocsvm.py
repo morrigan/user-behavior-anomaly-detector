@@ -21,7 +21,7 @@ def print_accuracy(title, datasetY, predictions):
 def replace_in_list(list, oldChar, newChar):
     for n, i in enumerate(list):
         if i == 'anomaly':
-            list[n] = -1
+            list[n] = -1.
 
 
 def train_with_scikit(trainX, testX):
@@ -54,10 +54,10 @@ xx, yy = np.meshgrid(np.linspace(-5, 5, 500), np.linspace(-5, 5, 500))
 max_vector_length = 30
 
 # Create datasets
-train_dataset = pandas.read_csv("./data/test.csv", delimiter=';', engine='python')
-test_dataset = pandas.read_csv("./data/primjer.csv", delimiter=';', engine='python')
+train_dataset = pandas.read_csv("./data/train_belma.csv", delimiter=';', engine='python')
+test_dataset = pandas.read_csv("./data/test_belma.csv", delimiter=';', engine='python')
 
-train_dataset = train_dataset[:len(train_dataset)/12]
+#train_dataset = train_dataset[:len(train_dataset)/6]
 
 # Convert strings
 train_dataset_array = helpers.collection_values_to_array(train_dataset)
@@ -70,9 +70,23 @@ testX = sequence.pad_sequences(test_dataset_array, maxlen=max_vector_length) #pa
 assert (trainX.shape[1] == testX.shape[1])
 
 # fit the model
-y_pred_train, y_pred_test, n_error_train, n_error_test = train_with_scikit(trainX, testX)
-#y_pred_train, y_pred_test, n_error_train, n_error_test = train_with_lsanomaly(trainX, testX)
+#y_pred_train, y_pred_test, n_error_train, n_error_test = train_with_scikit(trainX, testX)
+y_pred_train, y_pred_test, n_error_train, n_error_test = train_with_lsanomaly(trainX, testX)
 
+#testX_plot = []
+#for n, i in enumerate(testX):
+#    for m, j in enumerate(testX):
+#        if i >= 0:
+#            testX_plot.append(n)
+
+#plt.set_cmap(plt.cm.Paired)
+#plt.scatter(trainX[y_pred_train>0], trainX[y_pred_train>0], c='black', label='inliers')
+#plt.scatter(trainX[y_pred_train <= 0], trainX[y_pred_train <= 0], c='red', label='outliers')
+#plt.scatter(testX_plot, testX_plot, c='black', label='inliers')
+#plt.scatter(testX[y_pred_test < 0], testX[y_pred_test < 0], c='red', label='outliers')
+#plt.axis('tight')
+#plt.legend()
+#plt.show()
 
 # Visualize
 plt.title("Novelty Detection")

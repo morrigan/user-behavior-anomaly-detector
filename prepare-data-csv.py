@@ -12,7 +12,7 @@ np.random.seed(7)
 # Constants
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string(
-  "input_dir", os.path.abspath("./data"),
+  "input_dir", os.path.abspath("./data/real_logs"),
   "Input directory containing original JSON data files (default = './data')"
 )
 tf.flags.DEFINE_string(
@@ -22,11 +22,11 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_integer("min_word_frequency", 1, "Minimum frequency of words in the vocabulary")
 tf.flags.DEFINE_integer("max_sentence_len", 30, "Maximum Sentence Length in words")
 
-TRAIN_PATH = os.path.join(FLAGS.input_dir, "merged.json")
-TEST_PATH = os.path.join(FLAGS.input_dir, "primjer.json")
+TRAIN_PATH = os.path.join(FLAGS.input_dir, "train.json")
+TEST_PATH = os.path.join(FLAGS.input_dir, "test_2017-03-28.json")
 
 CURRENT_PATH = TEST_PATH
-OUTPUT_FILE = "primjer.csv"
+OUTPUT_FILE = "test_belma.csv"
 
 #
 def tokenizer_fn(iterator):
@@ -44,8 +44,14 @@ def json_dict_to_string(dictionary):
 def create_vocabulary():
     print("Creating vocabulary...")
 
-    iter_generator = create_iter_generator(CURRENT_PATH)
+    iter_generator = create_iter_generator(TRAIN_PATH)
     input_iter = []
+    for x in iter_generator:
+        column = json_dict_to_string(x)
+        input = x["action"] + " " + column
+        input_iter.append(input)
+
+    iter_generator = create_iter_generator(TEST_PATH)
     for x in iter_generator:
         column = json_dict_to_string(x)
         input = x["action"] + " " + column
