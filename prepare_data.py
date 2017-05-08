@@ -25,8 +25,8 @@ tf.flags.DEFINE_integer("max_sentence_len", 30, "Maximum Sentence Length in word
 TRAIN_PATH = os.path.join(FLAGS.input_dir, "train.json")
 TEST_PATH = os.path.join(FLAGS.input_dir, "test_2017-03-28.json")
 
-CURRENT_PATH = TEST_PATH
-OUTPUT_FILE = "test_belma.csv"
+CURRENT_PATH = TRAIN_PATH
+OUTPUT_FILE = "test.csv"
 
 #
 def tokenizer_fn(iterator):
@@ -82,24 +82,18 @@ def create_csv_file(input_filename, output_filename, convert_fn):
     print("Creating CSV file at {}...".format(output_filename))
 
     actions = []
-    labels = []
 
     for i, row in enumerate(create_iter_generator(input_filename)):
         columns = json_dict_to_string(row)
-        label = 1
-        if 'label' in row:
-            label = row['label']
 
         output_row = {
             'action': row["action"] + " " + columns,    # action is of type added/removed
-            'label': label
         }
 
-        action_transformed, action_len, label = convert_fn(output_row)
+        action_transformed, action_len = convert_fn(output_row)
         actions.append(action_transformed[:action_len])     # Remove padding :)
-        labels.append(output_row['label'])
 
-    output = pd.DataFrame(data={'action': actions, 'label': labels})
+    output = pd.DataFrame(data={'action': actions})
     output.to_csv(output_filename, index=False, sep=";", quoting=csv.QUOTE_NONE, quotechar='')
 
     print("Wrote to {}".format(output_filename))
@@ -114,12 +108,10 @@ def transform_sentence(sequence, vocab_processor):
 
 def extract_action(row, vocab):
     action = row['action'].strip()
-    label = row['label']
     action_transformed = transform_sentence(action, vocab)
     action_len = len(next(vocab._tokenizer([action])))
-    label = int(float(label))
 
-    return action_transformed, action_len, label
+    return action_transformed, action_len
 
 def create_and_save_vocabulary():
     vocabulary = create_vocabulary()
@@ -133,9 +125,19 @@ def create_and_save_vocabulary():
 def restore_vocabulary(filename):
     return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
 
+def convert_action(action):
+    vocabulary = restore_vocabulary("./data/vocab_processor.bin")
+    columns = json_dict_to_string(action)
+    print columns
+
+    converted = extract_action(columns, vocabulary)
+
+    print converted
+    return converted
+
 if __name__ == "__main__":
-    vocabulary = create_and_save_vocabulary()
-    #vocabulary = restore_vocabulary("./data/vocab_processor.bin")
+    #vocabulary = create_and_save_vocabulary()
+    vocabulary = restore_vocabulary("./data/vocab_processor.bin")
 
     create_csv_file(
         input_filename=CURRENT_PATH,
