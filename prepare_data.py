@@ -1,5 +1,4 @@
-import os
-import csv
+import os, csv, json
 import functools
 import tensorflow as tf
 import numpy as np
@@ -125,15 +124,16 @@ def create_and_save_vocabulary():
 def restore_vocabulary(filename):
     return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
 
-def convert_action(action):
+def action_to_vector(action):
     vocabulary = restore_vocabulary("./data/vocab_processor.bin")
-    columns = json_dict_to_string(action)
-    print columns
+    row = json.loads(action)
+    columns = json_dict_to_string(row)
+    output_row = {
+        'action': row["action"] + " " + columns
+    }
 
-    converted = extract_action(columns, vocabulary)
-
-    print converted
-    return converted
+    action, action_len = extract_action(output_row, vocabulary)
+    return action
 
 if __name__ == "__main__":
     #vocabulary = create_and_save_vocabulary()

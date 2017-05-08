@@ -12,6 +12,16 @@ from keras.utils import plot_model
 from sklearn.preprocessing import MinMaxScaler
 import pandas
 
+############ Parameters ###############
+load_existing_model = False
+visualize_model = False
+
+max_vector_length = 30	# "features"
+hidden_layers = 4	# memory units
+dropout = 0.2
+look_back = 1
+#######################################
+
 def visualize_model_training(history):
 	# list all data in history
 	print history.history
@@ -52,110 +62,119 @@ def create_model():
 
 	return model
 
-def load_model():
+def load_model(model_filename = 'model.json', weights_filename = "model.h5"):
 	# load json and create model
-	json_file = open('model.json', 'r')
+	json_file = open(model_filename, 'r')
 	loaded_model_json = json_file.read()
 	json_file.close()
 	loaded_model = model_from_json(loaded_model_json)
 
 	# load weights into new model
-	loaded_model.load_weights("model.h5")
-	print("Loaded model from disk")
+	loaded_model.load_weights(weights_filename)
+
+	loaded_model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
+	loaded_model.summary()
+	print "Loaded model from filesystem."
 	return loaded_model
 
-# Parameters
-load_existing_model = False
-max_vector_length = 30	# "features"
-hidden_layers = 4	# memory units
-dropout = 0.2
-weights_file = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
-###################
+def predict(model, actions):
+	actions = numpy.array(actions)
+	print actions
+	x = helpers.convert_dataset(actions, look_back)
+	print x
+	exit()
+	actionPredict = model.predict(x, batch_size=1, verbose=1)
+	return actionPredict
 
-# Create datasets
-train_dataset = pandas.read_csv("./data/test.csv", delimiter=';', engine='python')
-test_dataset = pandas.read_csv("./data/primjer.csv", delimiter=';', engine='python')
-
-# Convert strings
-train_dataset_array = helpers.collection_values_to_array(train_dataset)
-test_dataset_array = helpers.collection_values_to_array(test_dataset)
-
-# Padding (from left, otherwise results are affected in Keras)
-trainX = sequence.pad_sequences(train_dataset_array, maxlen=max_vector_length, padding='pre')
-testX = sequence.pad_sequences(test_dataset_array, maxlen=max_vector_length, padding='pre')
-
-# normalize the dataset
-trainX.reshape(-1, max_vector_length)
-testX.reshape(-1, max_vector_length)
-
-scaler = MinMaxScaler(feature_range=(0, 1))
-dataset = numpy.concatenate((trainX, testX), axis=0)
-trainX_length = len(trainX)
-print dataset
-print dataset.shape
-dataset = scaler.fit_transform(dataset)
-trainX, testX = dataset[0:trainX_length,:], dataset[trainX_length:len(dataset),:]
-
-print "TestX after fitting:"
-print testX
-print "---------------------\n"
-#assert(test_dataset_array.ndim == 2)
+def predict_by_batch(actions):
+	print actions
 
 
-#plt.plot(dataset)
-#plt.show()
-#trainX = numpy.array(train_dataset_array[:,0])
-#testX = test_dataset_array[:,0]
+def train_on_datasets():
+	save_training_model = False
 
-# For predicting
-look_back = 1	# Doesn't work yet with others
-trainX, trainY = helpers.convert_dataset(trainX, look_back)
-testX, testY = helpers.convert_dataset(testX, look_back)
+	# Create datasets
+	train_dataset = pandas.read_csv("./data/test.csv", delimiter=';', engine='python')
+	test_dataset = pandas.read_csv("./data/primjer.csv", delimiter=';', engine='python')
 
-# reshape input to be [samples, time steps, features]
-#trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
-#testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
+	# Convert strings
+	train_dataset_array = helpers.collection_values_to_array(train_dataset)
+	test_dataset_array = helpers.collection_values_to_array(test_dataset)
 
-# LSTM network
-if (load_existing_model == True):
-	model = load_model()
-else:
-	model = create_model()
-model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
-model.summary()
+	# Padding (from left, otherwise results are affected in Keras)
+	trainX = sequence.pad_sequences(train_dataset_array, maxlen=max_vector_length, padding='pre')
+	testX = sequence.pad_sequences(test_dataset_array, maxlen=max_vector_length, padding='pre')
 
-# Tensorboard callback
-#tbCallBack = callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
+	# normalize the dataset
+	trainX.reshape(-1, max_vector_length)
+	testX.reshape(-1, max_vector_length)
 
-# Fit the model
-history = model.fit(trainX, trainY, epochs=1, batch_size=24, verbose=2, callbacks=[])
+	scaler = MinMaxScaler(feature_range=(0, 1))
+	dataset = numpy.concatenate((trainX, testX), axis=0)
+	trainX_length = len(trainX)
+	print dataset
+	print dataset.shape
+	dataset = scaler.fit_transform(dataset)
+	trainX, testX = dataset[0:trainX_length,:], dataset[trainX_length:len(dataset),:]
 
-# Save current model if existing is not loaded
-if (load_existing_model == False):
-	save_model(model)
+	print "TestX after fitting:"
+	print testX
+	print "---------------------\n"
+	#assert(test_dataset_array.ndim == 2)
 
-# Make predictions
-trainPredict = model.predict(trainX)
-testPredict = model.predict(testX)
 
-# Visualize
-#plot_model(model, to_file='model.png')
-#visualize_model_training(history)
+	#plt.plot(dataset)
+	#plt.show()
 
-print "Test predict before transforming back"
-print testPredict
-print '----------'
-#testPredict = numpy.around(testPredict, decimals=1)
-#print testPredict
-#print testPredict.shape
+	# For predicting
+	trainX, trainY = helpers.convert_dataset(trainX, look_back)
+	testX, testY = helpers.convert_dataset(testX, look_back)
 
-# invert predictions
-trainPredict = scaler.inverse_transform(trainPredict)
-trainY = scaler.inverse_transform(trainY)
-testPredict = scaler.inverse_transform(testPredict)
-testY = scaler.inverse_transform(testY)
+	# reshape input to be [samples, time steps, features]
+	#trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+	#testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
 
-print "Test predict after transform"
-print testPredict
-print testY
+	# LSTM network
+	if (load_existing_model == True):
+		model = load_model()
+	else:
+		model = create_model()
+	model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
+	model.summary()
+
+	# Tensorboard callback
+	#tbCallBack = callbacks.TensorBoard(log_dir='./Graph', histogram_freq=0, write_graph=True, write_images=True)
+
+	# Fit the model
+	history = model.fit(trainX, trainY, epochs=1, batch_size=24, verbose=2, callbacks=[])
+
+	# Visualize model
+	if (visualize_model == True):
+		plot_model(model, to_file='model.png')
+		visualize_model_training(history)
+
+	# Save model
+	if (save_training_model == True):
+		save_model(model)
+
+	# Make predictions
+	trainPredict = model.predict(trainX)
+	testPredict = model.predict(testX)
+
+	print "Test predict before transforming back"
+	print testPredict
+	print '----------'
+	#testPredict = numpy.around(testPredict, decimals=1)
+	#print testPredict
+	#print testPredict.shape
+
+	# invert predictions
+	trainPredict = scaler.inverse_transform(trainPredict)
+	trainY = scaler.inverse_transform(trainY)
+	testPredict = scaler.inverse_transform(testPredict)
+	testY = scaler.inverse_transform(testY)
+
+	print "Test predict after transform"
+	print testPredict
+	print testY
 
