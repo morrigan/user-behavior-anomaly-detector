@@ -133,6 +133,7 @@ def action_to_vector(action):
     }
 
     action, action_len = extract_action(output_row, vocabulary)
+    action = action[:action_len]  # Remove padding :)
     return action
 
 if __name__ == "__main__":
