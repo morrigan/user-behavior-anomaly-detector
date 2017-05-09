@@ -14,6 +14,10 @@ import pandas, math
 load_existing_model = False
 save_training_model = True
 visualize_model = False
+scale_data = False
+
+train_dataset_file = "./data/train.csv"
+test_dataset_file = "./data/test.csv"
 
 max_vector_length = 30
 hidden_layers = 128	# memory units
@@ -75,21 +79,34 @@ def create_model():
     model.add(Masking(mask_value=0, input_shape=(1, max_vector_length)))
     model.add(LSTM(hidden_layers))
     model.add(Dense(max_vector_length))
-    model.add(advanced_activations.LeakyReLU(alpha=0))
+    model.add(advanced_activations.LeakyReLU(alpha=0))   # clamp all values below 0 to 0
+    #model.add(Activation('relu'))
 
     return model
+
+def train_model(model, trainX, trainY, verbose=2):
+    model.add(Dropout(dropout))
+    return model.fit(trainX, trainY, epochs=epochs, batch_size=batch_size, verbose=verbose, shuffle=False)
 
 def calculate_score(actions, predictions, scores):
     totals = []
     for i in range(len(actions)-1):
         action = sequence.pad_sequences(numpy.array([actions[i]]), maxlen=max_vector_length, padding='pre')
         rmse = math.sqrt(mean_squared_error(action[0], predictions[i]))
-        total = 1/rmse * 100 * scores[i]
+        # total = helpers.sigmoid(1/rmse * scores[i]) * 100
+        total = round(rmse * scores[i] / 100, 2)
         totals.append(total)
 
     return totals
 
-def predict(model, actions):
+def update_model(model, x, y):
+    return train_model(model, x, y, verbose=0)
+
+def forecast(model, actions):
+    if (len(actions) <= 1):
+        print "At least 2 actions needed to calculate and compare predictions."
+        return 0,0
+
     actions = numpy.array(actions)
     actions = sequence.pad_sequences(actions, maxlen=max_vector_length, padding='pre')
 
@@ -100,17 +117,22 @@ def predict(model, actions):
     x = numpy.reshape(x, (x.shape[0], 1, x.shape[1]))
 
     predicted = model.predict(x, batch_size=1, verbose=0)
-    return predicted
+    history = update_model(model, x, y)   # save data
+    return predicted, history
+
 
 
 def train_on_datasets():
     # Create datasets
-    train_dataset = pandas.read_csv("./data/merged.csv", delimiter=';', engine='python')
-    test_dataset = pandas.read_csv("./data/primjer.csv", delimiter=';', engine='python')
+    train_dataset = pandas.read_csv(train_dataset_file, delimiter=';', engine='python')
+    test_dataset = pandas.read_csv(test_dataset_file, delimiter=';', engine='python')
 
     # Convert strings
     train_dataset_array = helpers.collection_values_to_array(train_dataset)
     test_dataset_array = helpers.collection_values_to_array(test_dataset)	#shape (n,)
+
+    if (scale_data == True):
+        scaler, test_dataset_array, test_dataset_array = helpers.scale(train_dataset_array, test_dataset_array)
 
     # Padding (from left, otherwise results are affected in Keras)
     trainX = sequence.pad_sequences(train_dataset_array, maxlen=max_vector_length, padding='pre')	#shape (n, 30)
@@ -121,8 +143,6 @@ def train_on_datasets():
     # For predicting
     trainX, trainY = helpers.get_real_predictions(trainX)
     testX, testY = helpers.get_real_predictions(testX)
-
-    print trainX
 
     # reshape input to be [samples, time steps, features]
     trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
@@ -137,8 +157,7 @@ def train_on_datasets():
     model.summary()
 
     # Model training
-    model.add(Dropout(dropout))
-    history = model.fit(trainX, trainY, epochs=epochs, batch_size=batch_size, verbose=2, shuffle=False)
+    history = train_model(model, trainX, trainY)
 
     # Visualize model
     if (visualize_model == True):
@@ -152,6 +171,10 @@ def train_on_datasets():
     # Make predictions
     trainPredict = model.predict(trainX)
     testPredict = model.predict(testX)
+
+    if (scale_data == True):
+        trainPredict = helpers.invert_scale(scaler, trainX, trainPredict)
+        testPredict = helpers.invert_scale(scaler, testX, testPredict)
 
     print "Test predict:"
     print testPredict

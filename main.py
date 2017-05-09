@@ -1,13 +1,14 @@
 #!/usr/bin/python
 import sys, getopt, json
 
-from lstm import load_model, predict, calculate_score
-from prepare_data import action_to_vector
+from lstm import load_model, forecast, calculate_score
+from prepare_data import action_to_vector, tokenizer_fn
 from helpers import tail_F
 
+#-------------------#
 LOG_FILE = "/var/log/osquery/osqueryd.results.log"
 ALGORITHM = "LSTM"
-INTERVAL = 3   # in seconds
+INTERVAL = 30   # in seconds
 actions_scores = {
     'usb_devices': 2,
     'listening_ports': 3,
@@ -29,11 +30,9 @@ actions_scores = {
 }
 action_name_prefix = 'pack_external_pack_'
 #-------------------#
+# Unchangeable parameters
 has_new_data = False
 #-------------------#
-
-def tokenizer_fn(iterator):
-  return (x.split(" ") for x in iterator)
 
 def call_lstm(actions):
     model = load_model()
@@ -57,10 +56,11 @@ def call_lstm(actions):
 
         elif (action == '' and has_new_data == True):
             print "Done reading query results."
-            predicted = predict(model, actions_vectorized)
+            predicted, history = forecast(model, actions_vectorized)
 
-            print "Scores for each action (anomaly probability):\n"
-            print calculate_score(actions_vectorized, predicted, scores)
+            if (len(predicted) > 0):
+                print "Scores for each action (anomaly probability)"
+                print calculate_score(actions_vectorized, predicted, scores)
 
             has_new_data = False
             # Reset previous query log
@@ -89,7 +89,6 @@ if __name__ == "__main__":
         elif opt in ("-a", "--algorithm"):
             LOG_FILE = arg
 
-    #logfiles = watch_file(LOG_FILE, INTERVAL)
     logfiles = tail_F(LOG_FILE)
     if ALGORITHM.lower() == 'lstm':
         call_lstm(logfiles)

@@ -1,5 +1,6 @@
 import tensorflow as tf
-import numpy, os, time
+import numpy, os, time, math
+from sklearn.preprocessing import MinMaxScaler
 
 
 def read_data(filename):
@@ -21,6 +22,9 @@ def read_data(filename):
 
 
 ## Operations
+def sigmoid(x):
+  return 1 / (1 + math.exp(-x))
+
 def lrelu(x, leak=0.2, name="lrelu"):
     return tf.maximum(x, leak * x)
 
@@ -71,6 +75,27 @@ def collection_values_to_array(dataset):
 
     return numpy.array(new_dataset)
 
+
+def scale(train, test):
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    scaler = scaler.fit(train)
+
+    train = train.reshape(train.shape[0], train.shape[1])
+    train_scaled = scaler.transform(train)
+
+    test = test.reshape(test.shape[0], test.shape[1])
+    test_scaled = scaler.transform(test)
+
+    return scaler, train_scaled, test_scaled
+
+
+def invert_scale(scaler, X, yhat):
+    new_row = [x for x in X] + [yhat]
+    array = numpy.array(new_row)
+    array = array.reshape(1, len(array))
+    inverted = scaler.inverse_transform(array)
+
+    return inverted[0, -1]
 
 ## File watchers
 
