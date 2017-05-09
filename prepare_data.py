@@ -8,7 +8,8 @@ import pandas as pd
 # fix random seed for reproducibility
 np.random.seed(7)
 
-# Constants
+
+#-------------------------- Constants --------------------------#
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string(
   "input_dir", os.path.abspath("./data/real_logs"),
@@ -18,16 +19,17 @@ tf.flags.DEFINE_string(
   "output_dir", os.path.abspath("./data"),
   "Output directory for TFrEcord files (default = './data')")
 
-tf.flags.DEFINE_integer("min_word_frequency", 1, "Minimum frequency of words in the vocabulary")
-tf.flags.DEFINE_integer("max_sentence_len", 30, "Maximum Sentence Length in words")
+tf.flags.DEFINE_integer("min_word_frequency", 1, "Minimum frequency of occurrences in the vocabulary")
+tf.flags.DEFINE_integer("max_vector_len", 30, "Maximum vector length")
 
+#----------------------------------------------------------------#
 TRAIN_PATH = os.path.join(FLAGS.input_dir, "train.json")
-TEST_PATH = os.path.join(FLAGS.input_dir, "test_2017-03-28.json")
+TEST_PATH = os.path.join(FLAGS.input_dir, "test.json")
 
-CURRENT_PATH = TRAIN_PATH
+CURRENT_PATH = TEST_PATH
 OUTPUT_FILE = "test.csv"
+#----------------------------------------------------------------#
 
-#
 def tokenizer_fn(iterator):
   return (x.split(" ") for x in iterator)
 
@@ -57,7 +59,7 @@ def create_vocabulary():
         input_iter.append(input)
 
     vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor(
-        FLAGS.max_sentence_len,
+        FLAGS.max_vector_len,
         min_frequency=FLAGS.min_word_frequency,
         tokenizer_fn=tokenizer_fn)
     vocab_processor.fit(input_iter)
@@ -112,20 +114,20 @@ def extract_action(row, vocab):
 
     return action_transformed, action_len
 
-def create_and_save_vocabulary():
+def create_and_save_vocabulary(vocabularyfile = "vocabulary.txt", processorfile = "vocab_processor.bin"):
     vocabulary = create_vocabulary()
     # Create vocabulary.txt file
-    write_vocabulary(vocabulary, os.path.join(FLAGS.output_dir, "vocabulary.txt"))
+    write_vocabulary(vocabulary, os.path.join(FLAGS.output_dir, vocabularyfile))
     # Save vocab processor
-    vocabulary.save(os.path.join(tf.flags.FLAGS.output_dir, "vocab_processor.bin"))
+    vocabulary.save(os.path.join(tf.flags.FLAGS.output_dir, processorfile))
 
     return vocabulary
 
 def restore_vocabulary(filename):
     return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
 
-def action_to_vector(action):
-    vocabulary = restore_vocabulary("./data/vocab_processor.bin")
+def action_to_vector(action, processorfile = "vocab_processor.bin"):
+    vocabulary = restore_vocabulary(os.path.join(tf.flags.FLAGS.output_dir, processorfile))
     columns = json_dict_to_string(action)
     output_row = {
         'action': action["action"] + " " + columns
@@ -137,7 +139,7 @@ def action_to_vector(action):
 
 if __name__ == "__main__":
     #vocabulary = create_and_save_vocabulary()
-    vocabulary = restore_vocabulary("./data/vocab_processor.bin")
+    vocabulary = restore_vocabulary(os.path.join(tf.flags.FLAGS.output_dir, "vocab_processor.bin"))
 
     create_csv_file(
         input_filename=CURRENT_PATH,
