@@ -1,5 +1,3 @@
-import np
-import random
 import tensorflow as tf
 import numpy, os, time
 
@@ -20,31 +18,6 @@ def read_data(filename):
         lengths.append(action_len)
         # print action, action_len, label
     return actions, lengths, labels
-
-
-def read_single_example(filename_queue):
-    reader = tf.TFRecordReader()
-    _, serialized_example = reader.read(filename_queue)
-    features = tf.parse_single_example(
-        serialized_example,
-        features={
-            'action': tf.FixedLenFeature([200], tf.int64),
-            # 'action_len': tf.FixedLenFeature([], tf.int64),
-            'label': tf.FixedLenFeature([1], tf.int64),
-        })
-    print features['action']
-    return features['action'], features['label']
-
-
-def get_random_minibatch_indices(n_examples, batch_size):
-    indices = range(n_examples)
-    random.shuffle(indices)
-    num_batches = n_examples / batch_size
-    minibatch_indices = np.zeros(shape=(num_batches, batch_size), dtype='int64')
-    for b_i in range(num_batches):
-        for ex_i in range(batch_size):
-            minibatch_indices[b_i] = indices[b_i * batch_size:(b_i + 1) * batch_size]
-    return minibatch_indices
 
 
 ## Operations
