@@ -126,10 +126,9 @@ def restore_vocabulary(filename):
 
 def action_to_vector(action):
     vocabulary = restore_vocabulary("./data/vocab_processor.bin")
-    row = json.loads(action)
-    columns = json_dict_to_string(row)
+    columns = json_dict_to_string(action)
     output_row = {
-        'action': row["action"] + " " + columns
+        'action': action["action"] + " " + columns
     }
 
     action, action_len = extract_action(output_row, vocabulary)
