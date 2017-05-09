@@ -8,7 +8,6 @@ from helpers import tail_F
 #-------------------#
 LOG_FILE = "/var/log/osquery/osqueryd.results.log"
 ALGORITHM = "LSTM"
-INTERVAL = 30   # in seconds
 actions_scores = {
     'usb_devices': 2,
     'listening_ports': 3,
