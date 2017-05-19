@@ -23,9 +23,7 @@ The idea was to build a system that is an adaptive user action identifier, so it
 
 ###### osquery
 - Download [osquery](https://osquery.io/downloads/).
-- Get osquery pack of queries file [here](https://gist.github.com/morrigan/51343a6b879643f706d761137a8f90e2).
-- Get osquery configuration file [here](https://gist.github.com/morrigan/f1f36064dac5a9fd5b2a121c906ada67).
-- Place both files in osquery directory which is usually `/etc/osquery/` or `/usr/local/`.
+- Move osquery pack of queries file `user-behavior.conf` and osquery configuration file `osquery.conf` from conf directory to osquery directory which is usually `/etc/osquery/` or `/usr/local/`.
 - To capture syslog events additional configuration is required. 
 Add the following to your rsyslog configuration files (usually located in `/etc/rsyslog.conf` or `/etc/rsyslog.d/`:
 ```
