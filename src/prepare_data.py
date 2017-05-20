@@ -1,9 +1,12 @@
-import os, csv, json
+#!/usr/bin/python
+
+import os, csv
 import functools
 import tensorflow as tf
 import numpy as np
 import json
 import pandas as pd
+import helpers
 
 # fix random seed for reproducibility
 np.random.seed(7)
@@ -12,12 +15,12 @@ np.random.seed(7)
 #-------------------------- Constants --------------------------#
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string(
-  "input_dir", os.path.abspath("./data/real_logs"),
-  "Input directory containing original JSON data files (default = './data')"
+  "input_dir", os.path.abspath("../data/real_logs"),
+  "Input directory containing original JSON data files (default = '../data')"
 )
 tf.flags.DEFINE_string(
-  "output_dir", os.path.abspath("./data"),
-  "Output directory for TFrEcord files (default = './data')")
+  "output_dir", os.path.abspath("../data"),
+  "Output directory for TFrEcord files (default = '../data')")
 
 tf.flags.DEFINE_integer("min_word_frequency", 1, "Minimum frequency of occurrences in the vocabulary")
 tf.flags.DEFINE_integer("max_vector_len", 30, "Maximum vector length")
@@ -126,8 +129,9 @@ def create_and_save_vocabulary(vocabularyfile = "vocabulary.txt", processorfile 
 def restore_vocabulary(filename):
     return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
 
-def action_to_vector(action, processorfile = "vocab_processor.bin"):
-    vocabulary = restore_vocabulary(os.path.join(tf.flags.FLAGS.output_dir, processorfile))
+def action_to_vector(action, config_file):
+    settings = helpers.getConfig(config_file)
+    vocabulary = restore_vocabulary(os.path.join(tf.flags.FLAGS.output_dir, settings.get('Data', 'vocabulary_processor')))
     columns = json_dict_to_string(action)
     output_row = {
         'action': action["action"] + " " + columns

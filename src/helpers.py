@@ -1,7 +1,30 @@
+#!/usr/bin/python
+
 import tensorflow as tf
 import numpy, os, time, math
 from sklearn.preprocessing import MinMaxScaler
+import ConfigParser
 
+
+def ConfigSectionMap(settings_file, section):
+    Config = ConfigParser.ConfigParser()
+    Config.read(settings_file)
+
+    dict1 = {}
+    options = Config.options(section)
+    for option in options:
+        try:
+            dict1[option] = Config.get(section, option)
+        except:
+            print("exception on %s!" % option)
+            dict1[option] = None
+    return dict1
+
+def getConfig(settings_file):
+    Config = ConfigParser.ConfigParser()
+    Config.read(settings_file)
+
+    return Config
 
 def read_data(filename):
     actions = []
@@ -19,7 +42,6 @@ def read_data(filename):
         lengths.append(action_len)
         # print action, action_len, label
     return actions, lengths, labels
-
 
 ## Operations
 def sigmoid(x):
