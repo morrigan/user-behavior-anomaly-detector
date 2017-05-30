@@ -2,8 +2,10 @@
 
 import tensorflow as tf
 import numpy, os, time, math
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 import ConfigParser
+import os.path
+from sklearn.metrics import mean_squared_error
 
 
 def ConfigSectionMap(settings_file, section):
@@ -22,9 +24,12 @@ def ConfigSectionMap(settings_file, section):
 
 def getConfig(settings_file):
     Config = ConfigParser.ConfigParser()
-    Config.read(settings_file)
-
-    return Config
+    if (os.path.isfile(settings_file)):
+        Config.read(settings_file)
+        return Config
+    else:
+        print "No settings file found"
+        exit()
 
 def read_data(filename):
     actions = []
@@ -67,6 +72,14 @@ def linear(input_, output_size, layer_scope, stddev=0.02, bias_start=0.0):
         return tf.matmul(input_, matrix) + bias
 
 
+def calculate_rmse(dataset, predictions):
+    rmse_totals = []
+    for i in range(len(dataset)):
+        rmse = math.sqrt(mean_squared_error(dataset[i][0], predictions[i]))
+        rmse_totals.append(rmse)
+
+    return rmse_totals
+
 # Convert an array of values into a dataset matrix
 def convert_dataset(dataset, look_back=3):
     dataX, dataY = [], []
@@ -99,25 +112,15 @@ def collection_values_to_array(dataset):
 
 
 def scale(train, test):
-    scaler = MinMaxScaler(feature_range=(-1, 1))
-    scaler = scaler.fit(train)
+    scaler = MinMaxScaler(feature_range=(0, 1))
 
-    train = train.reshape(train.shape[0], train.shape[1])
-    train_scaled = scaler.transform(train)
-
-    test = test.reshape(test.shape[0], test.shape[1])
-    test_scaled = scaler.transform(test)
+    train_scaled = scaler.fit_transform(train)
+    test_scaled = scaler.fit_transform(test)
 
     return scaler, train_scaled, test_scaled
 
-
-def invert_scale(scaler, X, yhat):
-    new_row = [x for x in X] + [yhat]
-    array = numpy.array(new_row)
-    array = array.reshape(1, len(array))
-    inverted = scaler.inverse_transform(array)
-
-    return inverted[0, -1]
+def invert_scale(scaler, X):
+    return scaler.inverse_transform(X)
 
 ## File watchers
 

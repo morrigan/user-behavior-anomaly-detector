@@ -4,7 +4,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy
 import pandas
-from keras.layers import LSTM, Dense, Masking, Dropout
+from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout
 from keras.layers import advanced_activations
 from keras.models import Sequential, model_from_json
 from keras.preprocessing import sequence
@@ -69,7 +69,7 @@ class LSTM:
         model = Sequential()
         #model.add(Embedding(input_dim=64123, output_dim=3, input_length=max_vector_length, mask_zero=True))
         model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
-        model.add(LSTM(self.settings.getint('LSTM, ''hidden_layers')))
+        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
         model.add(advanced_activations.LeakyReLU(alpha=0))   # clamp all values below 0 to 0
         #model.add(Activation('relu'))
@@ -114,8 +114,10 @@ class LSTM:
         history = self.update_model(model, x, y)   # save data
         return predicted, history
 
-
-
+    """
+        Use preprocessed dataset file (.csv) for training and testing.
+        Use model related configuration from settings.ini file.
+    """
     def train_on_datasets(self):
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
@@ -127,14 +129,14 @@ class LSTM:
         train_dataset_array = helpers.collection_values_to_array(train_dataset)
         test_dataset_array = helpers.collection_values_to_array(test_dataset)	#shape (n,)
 
-        if (self.settings.getboolean("LSTM", "scale_data") == True):
-            scaler, test_dataset_array, test_dataset_array = helpers.scale(train_dataset_array, test_dataset_array)
-
         # Padding (from left, otherwise results are affected in Keras)
-        trainX = sequence.pad_sequences(train_dataset_array, maxlen=max_vector_length, padding='pre')	#shape (n, 30)
-        testX = sequence.pad_sequences(test_dataset_array, maxlen=max_vector_length, padding='pre')
+        train = sequence.pad_sequences(train_dataset_array, maxlen=max_vector_length, padding='pre')  # shape (n, 30)
+        test = sequence.pad_sequences(test_dataset_array, maxlen=max_vector_length, padding='pre')
 
-        assert (trainX.shape[1] == max_vector_length)
+        assert (train.shape[1] == max_vector_length)
+
+        if (self.settings.getboolean("LSTM", "scale_data") == True):
+            scaler, trainX, testX = helpers.scale(train, test)
 
         # For predicting
         trainX, trainY = helpers.get_real_predictions(trainX)
@@ -168,12 +170,11 @@ class LSTM:
         trainPredict = model.predict(trainX)
         testPredict = model.predict(testX)
 
-        if (self.settings.getboolean("LSTM", "scale_data") == True):
-            trainPredict = helpers.invert_scale(scaler, trainX, trainPredict)
-            testPredict = helpers.invert_scale(scaler, testX, testPredict)
+        rmse_train = helpers.calculate_rmse(trainX, trainPredict)
+        rmse_test = helpers.calculate_rmse(testX, testPredict)
 
-        print "Test predict:"
-        print testPredict
-        print '----------'
-        print "TestY"
-        print testY
+        plt.plot(rmse_train, label='Train')
+        plt.plot(rmse_test, label='Test')
+        plt.xlabel('samples')
+        plt.ylabel('error')
+        plt.show()
