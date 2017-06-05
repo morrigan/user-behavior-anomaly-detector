@@ -114,45 +114,35 @@ class LSTM:
         history = self.update_model(model, x, y)   # save data
         return predicted, history
 
-    """
-        Use preprocessed dataset file (.csv) for training and testing.
-        Use model related configuration from settings.ini file.
-    """
-    def train_on_datasets(self):
-        max_vector_length = self.settings.getint("LSTM", "max_vector_length")
-
+    def load_datasets(self):
         # Create datasets
         train_dataset = pandas.read_csv(self.settings.get('Data', 'train_dataset_file'), delimiter=';', engine='python')
         test_dataset = pandas.read_csv(self.settings.get('Data', 'test_dataset_file'), delimiter=';', engine='python')
 
         # Convert strings
         train_dataset_array = helpers.collection_values_to_array(train_dataset)
-        test_dataset_array = helpers.collection_values_to_array(test_dataset)	#shape (n,)
+        test_dataset_array = helpers.collection_values_to_array(test_dataset)  # shape (n,)
 
-        # Padding (from left, otherwise results are affected in Keras)
-        train = sequence.pad_sequences(train_dataset_array, maxlen=max_vector_length, padding='pre')  # shape (n, 30)
-        test = sequence.pad_sequences(test_dataset_array, maxlen=max_vector_length, padding='pre')
+        return train_dataset_array, test_dataset_array
+
+    """
+        Train dataset on a given model (existing or created) and make predictions.
+        Return root mean squared error.
+    """
+    def train_on_dataset(self, train_dataset_array, model):
+        max_vector_length = self.settings.getint("LSTM", "max_vector_length")
+
+        train = helpers.padding(train_dataset_array, max_vector_length)  # shape (n, 30)
 
         assert (train.shape[1] == max_vector_length)
 
         if (self.settings.getboolean("LSTM", "scale_data") == True):
-            scaler, trainX, testX = helpers.scale(train, test)
+            scaler, trainX = helpers.scale(train)
 
         # For predicting
         trainX, trainY = helpers.get_real_predictions(trainX)
-        testX, testY = helpers.get_real_predictions(testX)
-
         # reshape input to be [samples, time steps, features]
         trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
-        testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
-
-        # LSTM network
-        if (self.settings.getboolean("LSTM", "load_existing_model") == True):
-            model = self.load_model()
-        else:
-            model = self.create_model()
-        model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
-        model.summary()
 
         # Model training
         history = self.train_model(model, trainX, trainY)
@@ -168,13 +158,62 @@ class LSTM:
 
         # Make predictions
         trainPredict = model.predict(trainX)
+        # Calculate error
+        rmse = helpers.calculate_rmse(trainX, trainPredict)
+
+        return rmse
+
+    """
+        Use loaded model to run a test dataset on it.
+        Return root mean squared error.
+    """
+    def test_on_dataset(self, test_dataset_array, model):
+        max_vector_length = self.settings.getint("LSTM", "max_vector_length")
+
+        test = helpers.padding(test_dataset_array, max_vector_length)  # shape (n, 30)
+
+        assert (test.shape[1] == max_vector_length)
+
+        if (self.settings.getboolean("LSTM", "scale_data") == True):
+            scaler, testX = helpers.scale(test)
+
+        # For predicting
+        testX, testY = helpers.get_real_predictions(testX)
+        # reshape input to be [samples, time steps, features]
+        testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
+
+        # Make predictions
         testPredict = model.predict(testX)
+        # Calculate error
+        rmse = helpers.calculate_rmse(testX, testPredict)
 
-        rmse_train = helpers.calculate_rmse(trainX, trainPredict)
-        rmse_test = helpers.calculate_rmse(testX, testPredict)
+        return rmse
 
+    """
+        Use preprocessed dataset file for training and testing.
+        Use model related configuration from settings.ini file.
+    """
+    def train_on_datasets(self, train_dataset_array = [], test_dataset_array = []):
+        # If none given, load datasets from .csv defined in settings
+        if (len(train_dataset_array) == 0 and len(test_dataset_array) == 0):
+            train_dataset_array, test_dataset_array = self.load_datasets()
+
+        # LSTM model
+        if (self.settings.getboolean("LSTM", "load_existing_model") == True):
+            model = self.load_model()
+        else:
+            model = self.create_model()
+        model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
+        model.summary()
+
+        # Model training
+        rmse_train =  self.train_on_dataset(train_dataset_array, model)
+        rmse_test =  self.test_on_dataset(test_dataset_array, model)
+
+        # Plotting
         plt.plot(rmse_train, label='Train')
         plt.plot(rmse_test, label='Test')
         plt.xlabel('samples')
         plt.ylabel('error')
+        plt.legend(loc='upper right')
         plt.show()

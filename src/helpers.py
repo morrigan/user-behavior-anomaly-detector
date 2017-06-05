@@ -6,6 +6,8 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 import ConfigParser
 import os.path
 from sklearn.metrics import mean_squared_error
+from keras.preprocessing import sequence
+
 
 
 def ConfigSectionMap(settings_file, section):
@@ -110,17 +112,20 @@ def collection_values_to_array(dataset):
 
     return numpy.array(new_dataset)
 
-
-def scale(train, test):
+def scale(dataset):
     scaler = MinMaxScaler(feature_range=(0, 1))
 
-    train_scaled = scaler.fit_transform(train)
-    test_scaled = scaler.fit_transform(test)
+    dataset_scaled = scaler.fit_transform(dataset)
 
-    return scaler, train_scaled, test_scaled
+    return scaler, dataset_scaled
 
 def invert_scale(scaler, X):
     return scaler.inverse_transform(X)
+
+def padding(dataset, length):
+    # Padding (from left, otherwise results are affected in Keras)
+    return sequence.pad_sequences(dataset, maxlen=length, padding='pre')  # shape (n, length)
+
 
 ## File watchers
 
@@ -161,3 +166,7 @@ def tail_F(some_file):
                         yield line + '\n'
         except IOError:
             yield ''
+
+def read_file(fname):
+    with open(fname) as f:
+        return f.readlines()
