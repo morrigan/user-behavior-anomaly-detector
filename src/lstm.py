@@ -17,7 +17,6 @@ class LSTM:
     def __init__(self, config_file):
         self.settings = helpers.getConfig(config_file)
 
-
     def visualize_model_training(self, history):
         # list all data in history
         print history.history
@@ -73,6 +72,17 @@ class LSTM:
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
         model.add(advanced_activations.LeakyReLU(alpha=0))   # clamp all values below 0 to 0
         #model.add(Activation('relu'))
+
+        return model
+
+    def get_model(self):
+        # LSTM model
+        if (self.settings.getboolean("LSTM", "load_existing_model") == True):
+            model = self.load_model()
+        else:
+            model = self.create_model()
+        model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
+        model.summary()
 
         return model
 
@@ -198,13 +208,7 @@ class LSTM:
         if (len(train_dataset_array) == 0 and len(test_dataset_array) == 0):
             train_dataset_array, test_dataset_array = self.load_datasets()
 
-        # LSTM model
-        if (self.settings.getboolean("LSTM", "load_existing_model") == True):
-            model = self.load_model()
-        else:
-            model = self.create_model()
-        model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
-        model.summary()
+        model = self.get_model()
 
         # Model training
         rmse_train =  self.train_on_dataset(train_dataset_array, model)

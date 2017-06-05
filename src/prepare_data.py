@@ -4,7 +4,6 @@ import os, csv
 import functools
 import tensorflow as tf
 import numpy as np
-import json
 import pandas as pd
 import helpers
 
@@ -36,30 +35,26 @@ OUTPUT_FILE = "test.csv"
 def tokenizer_fn(iterator):
   return (x.split(" ") for x in iterator)
 
-def create_iter_generator(filename):
-    with open(filename) as file:
-        reader = json.load(file)
-        for row in reader:
-            yield row
-
 def json_dict_to_string(dictionary):
     return ''.join('{} {} '.format(key, val) for key, val in dictionary["columns"].items() if key != "time")
 
-def create_vocabulary():
+
+def create_vocabulary(train_path, test_path):
     print("Creating vocabulary...")
 
-    iter_generator = create_iter_generator(TRAIN_PATH)
+    iter_generator = helpers.create_iter_generator(train_path)
     input_iter = []
     for x in iter_generator:
         column = json_dict_to_string(x)
         input = x["action"] + " " + column
         input_iter.append(input)
 
-    iter_generator = create_iter_generator(TEST_PATH)
-    for x in iter_generator:
-        column = json_dict_to_string(x)
-        input = x["action"] + " " + column
-        input_iter.append(input)
+    if (test_path):
+        iter_generator = helpers.create_iter_generator(test_path)
+        for x in iter_generator:
+            column = json_dict_to_string(x)
+            input = x["action"] + " " + column
+            input_iter.append(input)
 
     vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor(
         FLAGS.max_vector_len,
@@ -87,7 +82,7 @@ def create_csv_file(input_filename, output_filename, convert_fn):
 
     actions = []
 
-    for i, row in enumerate(create_iter_generator(input_filename)):
+    for i, row in enumerate(helpers.create_iter_generator(input_filename)):
         columns = json_dict_to_string(row)
 
         output_row = {
@@ -101,6 +96,7 @@ def create_csv_file(input_filename, output_filename, convert_fn):
     output.to_csv(output_filename, index=False, sep=";", quoting=csv.QUOTE_NONE, quotechar='')
 
     print("Wrote to {}".format(output_filename))
+
 
 def transform_sentence(sequence, vocab_processor):
   """
@@ -117,8 +113,9 @@ def extract_action(row, vocab):
 
     return action_transformed, action_len
 
-def create_and_save_vocabulary(vocabularyfile = "vocabulary.txt", processorfile = "vocab_processor.bin"):
-    vocabulary = create_vocabulary()
+
+def create_and_save_vocabulary(train, test = "", vocabularyfile = "vocabulary.txt", processorfile = "vocab_processor.bin"):
+    vocabulary = create_vocabulary(train, test)
     # Create vocabulary.txt file
     write_vocabulary(vocabulary, os.path.join(FLAGS.output_dir, vocabularyfile))
     # Save vocab processor
@@ -126,12 +123,16 @@ def create_and_save_vocabulary(vocabularyfile = "vocabulary.txt", processorfile 
 
     return vocabulary
 
-def restore_vocabulary(filename):
+
+def restore_vocabulary(filename = "", config_file = "settings.ini"):
+    if (filename == ""):
+        settings = helpers.getConfig(config_file)
+        filename = settings.get('Data', 'vocabulary_processor')
+
     return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
 
-def action_to_vector(action, config_file):
-    settings = helpers.getConfig(config_file)
-    vocabulary = restore_vocabulary(os.path.join(tf.flags.FLAGS.output_dir, settings.get('Data', 'vocabulary_processor')))
+
+def action_to_vector(action, vocabulary):
     columns = json_dict_to_string(action)
     output_row = {
         'action': action["action"] + " " + columns
@@ -141,8 +142,9 @@ def action_to_vector(action, config_file):
     action = action[:action_len]  # Remove padding :)
     return action
 
+
 if __name__ == "__main__":
-    #vocabulary = create_and_save_vocabulary()
+    #vocabulary = create_and_save_vocabulary(TRAIN_PATH, TEST_PATH)
     vocabulary = restore_vocabulary(os.path.join(tf.flags.FLAGS.output_dir, "vocab_processor.bin"))
 
     create_csv_file(

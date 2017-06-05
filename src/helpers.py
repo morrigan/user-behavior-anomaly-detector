@@ -7,6 +7,7 @@ import ConfigParser
 import os.path
 from sklearn.metrics import mean_squared_error
 from keras.preprocessing import sequence
+import json
 
 
 
@@ -167,6 +168,8 @@ def tail_F(some_file):
         except IOError:
             yield ''
 
-def read_file(fname):
-    with open(fname) as f:
-        return f.readlines()
+
+def create_iter_generator(filename):
+    with open(filename) as file:
+        for line in file:
+            yield json.loads(line)
