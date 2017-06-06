@@ -113,10 +113,10 @@ if __name__ == "__main__":
         elif opt in ("-c", "--settings"):
             CONFIG = arg
 
+    ## First, training on current log files
     train_lstm()
 
-    exit()
-
+    ## Watch for new logs
     logfiles = tail_F(LOG_FILE)
     if ALGORITHM.lower() == 'lstm':
         forecast_lstm(logfiles)

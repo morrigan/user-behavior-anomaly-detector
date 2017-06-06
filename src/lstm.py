@@ -39,6 +39,7 @@ class LSTM:
         plt.legend(['train', 'test'], loc='upper left')
         plt.show()
 
+
     def save_model(self, model):
         # serialize model to JSON
         model_json = model.to_json()
@@ -48,6 +49,7 @@ class LSTM:
         # serialize weights to HDF5
         model.save_weights(self.settings.get("LSTM", "weights_filename"))
         print("Saved model to disk")
+
 
     def load_model(self):
         # load json and create model
@@ -64,6 +66,7 @@ class LSTM:
         print "Loaded model from filesystem."
         return loaded_model
 
+
     def create_model(self):
         model = Sequential()
         #model.add(Embedding(input_dim=64123, output_dim=3, input_length=max_vector_length, mask_zero=True))
@@ -74,6 +77,11 @@ class LSTM:
         #model.add(Activation('relu'))
 
         return model
+
+
+    def update_model(self, model, x, y):
+        return self.train_model(model, x, y, verbose=0)
+
 
     def get_model(self):
         # LSTM model
@@ -86,10 +94,12 @@ class LSTM:
 
         return model
 
+
     def train_model(self, model, trainX, trainY, verbose=2):
         model.add(Dropout(self.settings.getfloat("LSTM", "dropout")))
         return model.fit(trainX, trainY, epochs=self.settings.getint("LSTM", "epochs"),
                          batch_size=self.settings.getint("LSTM", "batch_size"), verbose=verbose, shuffle=False)
+
 
     def calculate_score(self, actions, predictions, scores):
         totals = []
@@ -102,8 +112,6 @@ class LSTM:
 
         return totals
 
-    def update_model(self, model, x, y):
-        return self.train_model(model, x, y, verbose=0)
 
     def forecast(self, model, actions):
         if (len(actions) <= 1):
@@ -124,6 +132,7 @@ class LSTM:
         history = self.update_model(model, x, y)   # save data
         return predicted, history
 
+
     def load_datasets(self):
         # Create datasets
         train_dataset = pandas.read_csv(self.settings.get('Data', 'train_dataset_file'), delimiter=';', engine='python')
@@ -135,24 +144,31 @@ class LSTM:
 
         return train_dataset_array, test_dataset_array
 
+
+    def transform_dataset(self, dataset):
+        max_vector_length = self.settings.getint("LSTM", "max_vector_length")
+
+        dataset_padded = helpers.padding(dataset, max_vector_length)  # shape (n, 30)
+
+        assert (dataset_padded.shape[1] == max_vector_length)
+
+        if (self.settings.getboolean("LSTM", "scale_data") == True):
+            scaler, datasetX = helpers.scale(dataset_padded)
+
+        # For predicting
+        datasetX, datasetY = helpers.get_real_predictions(datasetX)
+        # reshape input to be [samples, time steps, features]
+        datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
+
+        return datasetX, datasetY
+
+
     """
         Train dataset on a given model (existing or created) and make predictions.
         Return root mean squared error.
     """
     def train_on_dataset(self, train_dataset_array, model):
-        max_vector_length = self.settings.getint("LSTM", "max_vector_length")
-
-        train = helpers.padding(train_dataset_array, max_vector_length)  # shape (n, 30)
-
-        assert (train.shape[1] == max_vector_length)
-
-        if (self.settings.getboolean("LSTM", "scale_data") == True):
-            scaler, trainX = helpers.scale(train)
-
-        # For predicting
-        trainX, trainY = helpers.get_real_predictions(trainX)
-        # reshape input to be [samples, time steps, features]
-        trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+        trainX, trainY = self.transform_dataset(train_dataset_array)
 
         # Model training
         history = self.train_model(model, trainX, trainY)
@@ -173,24 +189,13 @@ class LSTM:
 
         return rmse
 
+
     """
         Use loaded model to run a test dataset on it.
         Return root mean squared error.
     """
     def test_on_dataset(self, test_dataset_array, model):
-        max_vector_length = self.settings.getint("LSTM", "max_vector_length")
-
-        test = helpers.padding(test_dataset_array, max_vector_length)  # shape (n, 30)
-
-        assert (test.shape[1] == max_vector_length)
-
-        if (self.settings.getboolean("LSTM", "scale_data") == True):
-            scaler, testX = helpers.scale(test)
-
-        # For predicting
-        testX, testY = helpers.get_real_predictions(testX)
-        # reshape input to be [samples, time steps, features]
-        testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
+        testX, testY = self.transform_dataset(test_dataset_array)
 
         # Make predictions
         testPredict = model.predict(testX)
@@ -198,6 +203,7 @@ class LSTM:
         rmse = helpers.calculate_rmse(testX, testPredict)
 
         return rmse
+
 
     """
         Use preprocessed dataset file for training and testing.

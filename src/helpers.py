@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import tensorflow as tf
 import numpy, os, time, math
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 import ConfigParser
@@ -8,7 +7,6 @@ import os.path
 from sklearn.metrics import mean_squared_error
 from keras.preprocessing import sequence
 import json
-
 
 
 def ConfigSectionMap(settings_file, section):
@@ -25,6 +23,7 @@ def ConfigSectionMap(settings_file, section):
             dict1[option] = None
     return dict1
 
+
 def getConfig(settings_file):
     Config = ConfigParser.ConfigParser()
     if (os.path.isfile(settings_file)):
@@ -34,47 +33,10 @@ def getConfig(settings_file):
         print "No settings file found"
         exit()
 
-def read_data(filename):
-    actions = []
-    lengths = []
-    labels = []
-    for serialized_example in tf.python_io.tf_record_iterator(filename):
-        example = tf.train.Example()
-        example.ParseFromString(serialized_example)
 
-        action = example.features.feature['action'].int64_list.value
-        action_len = example.features.feature['action_len'].int64_list.value
-        label = example.features.feature['label'].int64_list.value[0]
-        actions.append(action)
-        labels.append(label)
-        lengths.append(action_len)
-        # print action, action_len, label
-    return actions, lengths, labels
-
-## Operations
-def sigmoid(x):
-  return 1 / (1 + math.exp(-x))
-
-def lrelu(x, leak=0.2, name="lrelu"):
-    return tf.maximum(x, leak * x)
-
-
-def linear(input_, output_size, layer_scope, stddev=0.02, bias_start=0.0):
-    if (input_.count):
-        print input_
-        shape = input_.get_shape().as_list()
-        print shape
-    else:
-        shape = input_
-
-    with tf.variable_scope(layer_scope):
-        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
-                                 tf.random_normal_initializer(stddev=stddev))
-        bias = tf.get_variable("bias", [output_size],
-                               initializer=tf.constant_initializer(bias_start))
-        return tf.matmul(input_, matrix) + bias
-
-
+"""
+    Calculate root mean squared error for each action in the dataset
+"""
 def calculate_rmse(dataset, predictions):
     rmse_totals = []
     for i in range(len(dataset)):
@@ -83,7 +45,10 @@ def calculate_rmse(dataset, predictions):
 
     return rmse_totals
 
-# Convert an array of values into a dataset matrix
+
+"""
+    Convert an array of values into a dataset matrix
+"""
 def convert_dataset(dataset, look_back=3):
     dataX, dataY = [], []
     for i in range(len(dataset) - look_back - 1):
@@ -93,6 +58,7 @@ def convert_dataset(dataset, look_back=3):
         dataY.append(b)
 
     return numpy.array(dataX), numpy.array(dataY)
+
 
 def get_real_predictions(dataset):
     dataX, dataY = [], []
@@ -113,6 +79,8 @@ def collection_values_to_array(dataset):
 
     return numpy.array(new_dataset)
 
+## Transform operations over data ##
+
 def scale(dataset):
     scaler = MinMaxScaler(feature_range=(0, 1))
 
@@ -120,13 +88,22 @@ def scale(dataset):
 
     return scaler, dataset_scaled
 
+
 def invert_scale(scaler, X):
     return scaler.inverse_transform(X)
+
 
 def padding(dataset, length):
     # Padding (from left, otherwise results are affected in Keras)
     return sequence.pad_sequences(dataset, maxlen=length, padding='pre')  # shape (n, length)
 
+
+## File operations ##
+
+def create_iter_generator(filename):
+    with open(filename) as file:
+        for line in file:
+            yield json.loads(line)
 
 ## File watchers
 
@@ -168,8 +145,3 @@ def tail_F(some_file):
         except IOError:
             yield ''
 
-
-def create_iter_generator(filename):
-    with open(filename) as file:
-        for line in file:
-            yield json.loads(line)
