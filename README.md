@@ -7,9 +7,10 @@ and One-Class Support Vector Machine (OCSVM). This project is part of Master the
 **Note:** Only Linux platforms are supported. Tested on Xubuntu 16.04.
 
 The code includes:
-- dataset to train your models on
+- dataset for different users to train and test models
 - preprocessing functions to properly tokenize the data
-- train and predict functions for existing data
+- train and predict functions for existing (saved) data
+- training new model on raw osquery logs
 - saving and loading trained models
 - predict functions for incoming new data
 
@@ -25,7 +26,7 @@ The idea was to build a system that is an adaptive user action identifier, so it
 - Download [osquery](https://osquery.io/downloads/).
 - Move osquery pack of queries file `user-behavior.conf` and osquery configuration file `osquery.conf` from conf directory to osquery directory which is usually `/etc/osquery/` or `/usr/local/`.
 - To capture syslog events additional configuration is required. 
-Add the following to your rsyslog configuration files (usually located in `/etc/rsyslog.conf` or `/etc/rsyslog.d/`:
+(Ubuntu) Add the following to your rsyslog configuration files (usually located in `/etc/rsyslog.conf` or `/etc/rsyslog.d/`:
 ```
 template(
   name="OsqueryCsvFormat"
@@ -42,15 +43,19 @@ If no logs are available, read [debugging suggestions](https://github.com/facebo
 ###### Repository
 
 - Download the repository using `git clone`.
-- Install pip requirements with the following command: `sudo pip install -r requirements.txt`.
+- Install pip requirements with the following command: `pip install -r requirements.txt`.
 Python 2.7 is required. I don't guarantee that everything works with Python 3+ but please feel free to try.
 
 ## How to use
 
-- Start osquery first i.e. `sudo service osqueryd start`.
-- You can start the program by choosing the wanted algorithms i.e. `sudo python main.py -a OCSVM`.
+- Start osquery first i.e. `sudo service osqueryd start` or `/usr/local/bin/osqueryd`. Osquery in this case doesn't require root access. 
+- You can start the program by choosing the wanted algorithms i.e. `python main.py -a OCSVM`.
     Default algorithm is LSTM. You can also change the queries result log file using the `-l` flag, default is `/var/log/osquery/osqueryd.results.log`.
-    Osquery runs and writes files as sudo so we need our python script to run as root.
+    If you are running osquery as root, use sudo to run python script because it needs to be able to read log file.
+- *Training* model is built for each user since each user is expected to have different behavior. First part of the main
+script is training a new model by processing all actions in the log file and considering them as normal behavior.
+On top of that model, predictions are made on each new action that comes in.
+
 
 ## License
 
