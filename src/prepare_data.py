@@ -38,6 +38,7 @@ def tokenizer_fn(iterator):
 def json_dict_to_string(dictionary):
     return ''.join('{} {} '.format(key, val) for key, val in dictionary["columns"].items() if key != "time")
 
+### START VOCABULARY FUNCTIONS ###
 
 def create_vocabulary(train_path, test_path):
     print("Creating vocabulary...")
@@ -67,14 +68,55 @@ def create_vocabulary(train_path, test_path):
 
 
 def write_vocabulary(vocabulary_processor, outfile):
-  """
-  Writes the vocabulary to a file, one word per line.
-  """
   with open(outfile, "w") as vocabfile:
     for id in range(len(vocabulary_processor.vocabulary_)):
       word =  vocabulary_processor.vocabulary_._reverse_mapping[id]
       vocabfile.write(word + "\n")
   print("Saved vocabulary to {}".format(outfile))
+
+
+def create_and_save_vocabulary(train, test="", vocabularyfile="vocabulary.txt", processorfile="vocab_processor.bin"):
+    vocabulary = create_vocabulary(train, test)
+
+    # Create vocabulary.txt file
+    write_vocabulary(vocabulary, os.path.join(FLAGS.output_dir, vocabularyfile))
+    # Save vocab processor
+    vocabulary.save(os.path.join(tf.flags.FLAGS.output_dir, processorfile))
+
+    return vocabulary
+
+
+def restore_vocabulary(filename="", config_file="settings.ini"):
+    if (filename == ""):
+        settings = helpers.getConfig(config_file)
+        filename = settings.get('Data', 'vocabulary_processor')
+
+    return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
+### END VOCABULARY FUNCTIONS ###
+
+
+def transform_sentence(sequence, vocab_processor):
+    # Maps a single vector input into the integer vocabulary.
+  return next(vocab_processor.transform([sequence])).tolist()
+
+
+def extract_action(row, vocab):
+    action = row['action'].strip()
+    action_transformed = transform_sentence(action, vocab)
+    action_len = len(next(vocab._tokenizer([action])))
+
+    return action_transformed, action_len
+
+
+def action_to_vector(action, vocabulary):
+    columns = json_dict_to_string(action)
+    output_row = {
+        'action': action["action"] + " " + columns
+    }
+
+    action, action_len = extract_action(output_row, vocabulary)
+    action = action[:action_len]  # Remove padding :)
+    return action
 
 
 def create_csv_file(input_filename, output_filename, convert_fn):
@@ -96,51 +138,6 @@ def create_csv_file(input_filename, output_filename, convert_fn):
     output.to_csv(output_filename, index=False, sep=";", quoting=csv.QUOTE_NONE, quotechar='')
 
     print("Wrote to {}".format(output_filename))
-
-
-def transform_sentence(sequence, vocab_processor):
-  """
-  Maps a single sentence into the integer vocabulary.
-  Returns an array.
-  """
-  return next(vocab_processor.transform([sequence])).tolist()
-
-
-def extract_action(row, vocab):
-    action = row['action'].strip()
-    action_transformed = transform_sentence(action, vocab)
-    action_len = len(next(vocab._tokenizer([action])))
-
-    return action_transformed, action_len
-
-
-def create_and_save_vocabulary(train, test = "", vocabularyfile = "vocabulary.txt", processorfile = "vocab_processor.bin"):
-    vocabulary = create_vocabulary(train, test)
-    # Create vocabulary.txt file
-    write_vocabulary(vocabulary, os.path.join(FLAGS.output_dir, vocabularyfile))
-    # Save vocab processor
-    vocabulary.save(os.path.join(tf.flags.FLAGS.output_dir, processorfile))
-
-    return vocabulary
-
-
-def restore_vocabulary(filename = "", config_file = "settings.ini"):
-    if (filename == ""):
-        settings = helpers.getConfig(config_file)
-        filename = settings.get('Data', 'vocabulary_processor')
-
-    return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
-
-
-def action_to_vector(action, vocabulary):
-    columns = json_dict_to_string(action)
-    output_row = {
-        'action': action["action"] + " " + columns
-    }
-
-    action, action_len = extract_action(output_row, vocabulary)
-    action = action[:action_len]  # Remove padding :)
-    return action
 
 
 if __name__ == "__main__":
