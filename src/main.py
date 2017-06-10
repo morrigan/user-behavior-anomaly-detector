@@ -4,33 +4,12 @@ import sys, getopt, json
 
 from lstm import LSTM
 from prepare_data import action_to_vector, restore_vocabulary, create_and_save_vocabulary, tokenizer_fn
-from helpers import tail_F, create_iter_generator, getConfig
+from helpers import tail_F, create_iter_generator, readScores
 
 #-------------------#
 LOG_FILE = "/var/log/osquery/osqueryd.results.log"
 ALGORITHM = "LSTM"
 CONFIG = "settings.ini"
-
-actions_scores = {
-    'usb_devices': 2,
-    'listening_ports': 3,
-    'arp_cache': 1,
-    'suid_bin': 2,
-    'shell_history': 2,
-    'logged_in_users': 3,
-    'ramdisk': 2,
-    'open_files': 2,
-    'open_sockets': 1,
-    'last': 3,
-    'etc_hosts': 3,
-    'iptables': 2,
-    'deb_packages': 2,
-    'kernel_modules': 3,
-    'firefox_addons': 1,
-    'chrome_extensions': 1,
-    'syslog': 3
-}
-action_name_prefix = 'pack_external_pack_'
 #-------------------#
 # Unchangeable parameters
 has_new_data = False
@@ -41,6 +20,7 @@ def forecast_lstm(actions):
     model = lstm.load_model()
 
     vocabulary = restore_vocabulary()
+    actions_scores = readScores(CONFIG)
     global has_new_data
     actions_vectorized = []
     scores = []
@@ -50,7 +30,7 @@ def forecast_lstm(actions):
             action_in_vector = action_to_vector(action, vocabulary)
             actions_vectorized.append(action_in_vector)
 
-            action_name = action['name'].replace(action_name_prefix, '')
+            action_name = action['name']#.replace(action_name_prefix, '')
             if (action_name in actions_scores):
                 score = actions_scores[action_name]
             else:
@@ -114,7 +94,7 @@ if __name__ == "__main__":
             CONFIG = arg
 
     ## First, training on current log files
-    train_lstm()
+    #train_lstm()
 
     ## Watch for new logs
     logfiles = tail_F(LOG_FILE)

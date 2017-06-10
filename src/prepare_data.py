@@ -25,11 +25,11 @@ tf.flags.DEFINE_integer("min_word_frequency", 1, "Minimum frequency of occurrenc
 tf.flags.DEFINE_integer("max_vector_len", 30, "Maximum vector length")
 
 #----------------------------------------------------------------#
-TRAIN_PATH = os.path.join(FLAGS.input_dir, "train.json")
-TEST_PATH = os.path.join(FLAGS.input_dir, "test.json")
+TRAIN_PATH = os.path.join(FLAGS.input_dir, "20170529_Belma.log")
+TEST_PATH = os.path.join(FLAGS.input_dir, "20170609_Belma.log")
 
 CURRENT_PATH = TEST_PATH
-OUTPUT_FILE = "test.csv"
+OUTPUT_FILE = "user1_test.csv"
 #----------------------------------------------------------------#
 
 def tokenizer_fn(iterator):
@@ -86,11 +86,7 @@ def create_and_save_vocabulary(train, test="", vocabularyfile="vocabulary.txt", 
     return vocabulary
 
 
-def restore_vocabulary(filename="", config_file="settings.ini"):
-    if (filename == ""):
-        settings = helpers.getConfig(config_file)
-        filename = settings.get('Data', 'vocabulary_processor')
-
+def restore_vocabulary(filename = os.path.join(tf.flags.FLAGS.output_dir, "vocab_processor.bin")):
     return tf.contrib.learn.preprocessing.VocabularyProcessor.restore(filename)
 ### END VOCABULARY FUNCTIONS ###
 
@@ -142,7 +138,7 @@ def create_csv_file(input_filename, output_filename, convert_fn):
 
 if __name__ == "__main__":
     #vocabulary = create_and_save_vocabulary(TRAIN_PATH, TEST_PATH)
-    vocabulary = restore_vocabulary(os.path.join(tf.flags.FLAGS.output_dir, "vocab_processor.bin"))
+    vocabulary = restore_vocabulary()
 
     create_csv_file(
         input_filename=CURRENT_PATH,

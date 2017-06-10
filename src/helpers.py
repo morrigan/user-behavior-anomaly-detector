@@ -6,7 +6,7 @@ import ConfigParser
 import os.path
 from sklearn.metrics import mean_squared_error
 from keras.preprocessing import sequence
-import json
+import json, time
 
 
 def ConfigSectionMap(settings_file, section):
@@ -32,6 +32,15 @@ def getConfig(settings_file):
     else:
         print "No settings file found"
         exit()
+
+def readScores(config_file):
+    settings = getConfig(config_file)
+    score_items = settings.items("scores")
+    scores = {}
+    for pair in score_items:
+        scores[pair[0]] = int(pair[1])
+
+    return scores
 
 
 """
@@ -96,6 +105,11 @@ def invert_scale(scaler, X):
 def padding(dataset, length):
     # Padding (from left, otherwise results are affected in Keras)
     return sequence.pad_sequences(dataset, maxlen=length, padding='pre')  # shape (n, length)
+
+
+def extract_hour(unixtime):
+    hour = time.strftime("%H", time.gmtime(unixtime))
+    return int(hour)
 
 
 ## File operations ##
