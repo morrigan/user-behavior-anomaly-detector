@@ -43,6 +43,15 @@ def readScores(config_file):
     return scores
 
 
+def getScore(actions_scores, action_name):
+    if (action_name in actions_scores):
+        score = actions_scores[action_name]
+    else:
+        score = 0
+
+    return score
+
+
 """
     Calculate root mean squared error for each action in the dataset
 """
@@ -93,7 +102,7 @@ def collection_values_to_array(dataset):
 def scale(dataset):
     scaler = MinMaxScaler(feature_range=(0, 1))
 
-    dataset_scaled = scaler.fit_transform(dataset)
+    dataset_scaled = scaler.fit_transform(numpy.float32(dataset))
 
     return scaler, dataset_scaled
 

@@ -4,7 +4,7 @@ import sys, getopt, json
 
 from lstm import LSTM
 from prepare_data import action_to_vector, restore_vocabulary, create_and_save_vocabulary, tokenizer_fn
-from helpers import tail_F, create_iter_generator, readScores
+from helpers import tail_F, create_iter_generator, readScores, getScore, padding
 
 #-------------------#
 LOG_FILE = "/var/log/osquery/osqueryd.results.log"
@@ -21,35 +21,25 @@ def forecast_lstm(actions):
 
     vocabulary = restore_vocabulary()
     actions_scores = readScores(CONFIG)
-    global has_new_data
-    actions_vectorized = []
-    scores = []
+    previous_action = None
     for action in actions:
         if (action != ''):
+            # Compare previous action with the incoming action.
             action = json.loads(action)
-            action_in_vector = action_to_vector(action, vocabulary)
-            actions_vectorized.append(action_in_vector)
+            incoming_action = action_to_vector(action, vocabulary)
+            if (previous_action == None):
+                previous_action = incoming_action
+                continue
 
-            action_name = action['name']#.replace(action_name_prefix, '')
-            if (action_name in actions_scores):
-                score = actions_scores[action_name]
-            else:
-                score = 0
-            scores.append(score)
-            has_new_data = True
+            score = getScore(actions_scores, action['name'])
 
-        elif (action == '' and has_new_data == True):
-            print "Done reading query results."
-            predicted, history = lstm.forecast(model, actions_vectorized)
+            previous_action_transformed = lstm.pretransform_dataset([previous_action],reshape=True)
+            incoming_action_transformed = lstm.pretransform_dataset([incoming_action], reshape=True)
+            predicted = lstm.forecast(model, previous_action_transformed, incoming_action_transformed)
+            # Print anomaly score and set the new one now as previous action.
+            print lstm.calculate_score(incoming_action_transformed, predicted, score)
 
-            if (len(predicted) > 0):
-                print "Scores for each action (anomaly probability)"
-                print lstm.calculate_score(actions_vectorized, predicted, scores)
-
-            has_new_data = False
-            # Reset previous query log
-            scores = []
-            actions_vectorized = []
+            previous_action = incoming_action
 
 def train_lstm():
     lstm = LSTM(CONFIG)
@@ -94,7 +84,7 @@ if __name__ == "__main__":
             CONFIG = arg
 
     ## First, training on current log files
-    #train_lstm()
+    train_lstm()
 
     ## Watch for new logs
     logfiles = tail_F(LOG_FILE)

@@ -101,36 +101,21 @@ class LSTM:
                          batch_size=self.settings.getint("LSTM", "batch_size"), verbose=verbose, shuffle=False)
 
 
-    def calculate_score(self, actions, predictions, scores):
-        totals = []
-        for i in range(len(actions)-1):
-            action = sequence.pad_sequences(numpy.array([actions[i]]), maxlen=self.settings.getint("LSTM", "max_vector_length"), padding='pre')
-            rmse = math.sqrt(mean_squared_error(action[0], predictions[i]))
-            # total = helpers.sigmoid(1/rmse * scores[i]) * 100
-            total = round(rmse * scores[i] / 100, 2)
-            totals.append(total)
-
-        return totals
+    def calculate_score(self, real, predicted, score):
+        rmse = math.sqrt(mean_squared_error(real, predicted))
+        # total = helpers.sigmoid(1/rmse * scores[i]) * 100
+        total = round(rmse * score / 100, 2)
+        return total
 
 
-    def forecast(self, model, actions):
-        if (len(actions) <= 1):
-            print "At least 2 actions are needed to calculate and compare predictions."
-            return 0,0
-
-        max_vector_length = self.settings.getint("LSTM", "max_vector_length")
-        actions = numpy.array(actions)
-        actions = sequence.pad_sequences(actions, maxlen=max_vector_length, padding='pre')
-
-        assert (actions.shape[1] == max_vector_length)
-
-        x, y = helpers.get_real_predictions(actions)
-
+    def forecast(self, model, x, y):
         x = numpy.reshape(x, (x.shape[0], 1, x.shape[1]))
-
         predicted = model.predict(x, batch_size=1, verbose=0)
-        history = self.update_model(model, x, y)   # save data
-        return predicted, history
+
+        # Update model with new actions
+        self.update_model(model, x, y)   # save data
+
+        return predicted
 
 
     def load_datasets(self):
@@ -145,7 +130,10 @@ class LSTM:
         return train_dataset_array, test_dataset_array
 
 
-    def transform_dataset(self, dataset):
+    """
+        Reshape needed because scaler didn't work with the forecasting dataset shape.
+    """
+    def pretransform_dataset(self, dataset, reshape = False):
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
         dataset_padded = helpers.padding(dataset, max_vector_length)  # shape (n, 30)
@@ -153,7 +141,21 @@ class LSTM:
         assert (dataset_padded.shape[1] == max_vector_length)
 
         if (self.settings.getboolean("LSTM", "scale_data") == True):
+            if (reshape == True):
+                dataset_padded = dataset_padded.reshape(-1, 1)
+
             scaler, datasetX = helpers.scale(dataset_padded)
+
+            if (reshape == True):
+                datasetX = datasetX.reshape(1, -1)
+        else:
+            datasetX = dataset_padded
+
+        return datasetX
+
+
+    def transform_dataset(self, dataset):
+        datasetX = self.pretransform_dataset(dataset)
 
         # For predicting
         datasetX, datasetY = helpers.get_real_predictions(datasetX)
