@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import os, csv
-import functools
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -21,24 +20,20 @@ tf.flags.DEFINE_string(
   "output_dir", os.path.abspath("../data"),
   "Output directory for TFrEcord files (default = '../data')")
 
-tf.flags.DEFINE_integer("min_word_frequency", 1, "Minimum frequency of occurrences in the vocabulary")
 tf.flags.DEFINE_integer("max_vector_len", 30, "Maximum vector length")
 
 #----------------------------------------------------------------#
-TRAIN_PATH = os.path.join(FLAGS.input_dir, "20170529_Belma.log")
+TRAIN_PATH = os.path.join(FLAGS.input_dir, "test_new")
 TEST_PATH = os.path.join(FLAGS.input_dir, "20170609_Belma.log")
 
-CURRENT_PATH = TEST_PATH
-OUTPUT_FILE = "user1_test.csv"
+CURRENT_PATH = TRAIN_PATH
+OUTPUT_FILE = "user1_train_new.csv"
 #----------------------------------------------------------------#
 
-def tokenizer_fn(iterator):
-  return (x.split(" ") for x in iterator)
-
-def json_dict_to_string(dictionary):
-    return ''.join('{} {} '.format(key, val) for key, val in dictionary["columns"].items() if key != "time")
-
 ### START VOCABULARY FUNCTIONS ###
+def tokenizer_fn(iterator):
+    return (x for x in iterator if x != "" and x != "0")
+
 
 def create_vocabulary(train_path, test_path):
     print("Creating vocabulary...")
@@ -46,20 +41,18 @@ def create_vocabulary(train_path, test_path):
     iter_generator = helpers.create_iter_generator(train_path)
     input_iter = []
     for x in iter_generator:
-        column = json_dict_to_string(x)
-        input = x["action"] + " " + column
+        input = get_features(x)
         input_iter.append(input)
 
     if (test_path):
         iter_generator = helpers.create_iter_generator(test_path)
         for x in iter_generator:
-            column = json_dict_to_string(x)
-            input = x["action"] + " " + column
-            input_iter.append(input)
+            input = get_features(x)
+            for x in input:
+                input_iter.append(x)
 
     vocab_processor = tf.contrib.learn.preprocessing.VocabularyProcessor(
         FLAGS.max_vector_len,
-        min_frequency=FLAGS.min_word_frequency,
         tokenizer_fn=tokenizer_fn)
     vocab_processor.fit(input_iter)
 
@@ -93,42 +86,71 @@ def restore_vocabulary(filename = os.path.join(tf.flags.FLAGS.output_dir, "vocab
 
 def transform_sentence(sequence, vocab_processor):
     # Maps a single vector input into the integer vocabulary.
-  return next(vocab_processor.transform([sequence])).tolist()
+    if (type(sequence) is not list):
+        sequence = [sequence]
 
 
-def extract_action(row, vocab):
-    action = row['action'].strip()
-    action_transformed = transform_sentence(action, vocab)
-    action_len = len(next(vocab._tokenizer([action])))
+    print sequence
+    vector = next(vocab_processor.transform(sequence)).tolist()
+    print "Vector:"
+    print vector
+    print "====="
+    vector_len = len(next(vocab_processor._tokenizer(sequence)))
+    vector = vector[:vector_len]
 
-    return action_transformed, action_len
+    return vector
 
 
-def action_to_vector(action, vocabulary):
-    columns = json_dict_to_string(action)
-    output_row = {
-        'action': action["action"] + " " + columns
-    }
+def get_features(line):
+    structure = ["added_or_removed", "hour", "usb_devices", "kernel_modules", "open_sockets", "open_sockets",
+                 "open_sockets", "open_sockets", "open_files", "logged_in_users", "logged_in_users", "shell_history",
+                 "listening_ports", "arp_cache", "arp_cache", "syslog", "syslog"]
 
-    action, action_len = extract_action(output_row, vocabulary)
-    action = action[:action_len]  # Remove padding :)
+    # First feature
+    added_or_removed = "2"  # added
+    if (line["action"] == "removed"):
+        added_or_removed = "1"
+    # Second feature
+    time = helpers.extract_hour(line["unixTime"])
+
+    # Other osquery features
+    columns = line["columns"].values()
+
+    # Compatibility with old shell_history query
+    #if (line["name"] == "pack_external_pack_shell_history"):
+        #columns = str(helpers._parse_shell_history(columns))
+
+    initial_vector = [added_or_removed, time] + ["0"] * (len(structure) - 2)
+    # Put action columns in the right place of vector according to structure
+    index = structure.index(line["name"].replace('pack_external_pack_', ''))
+
+    for i in range(len(columns)):
+        initial_vector[index + i] = columns[i]
+
+    return initial_vector
+
+
+"""
+    Takes logline in json format and vocabulary object.
+    Prepare to extract features from logline.
+    Return dictionary containing features vector in key name action
+"""
+def action_to_vector(line, vocabulary):
+    features_vector = get_features(line)
+
+    action = transform_sentence(features_vector, vocabulary)
+
     return action
 
 
-def create_csv_file(input_filename, output_filename, convert_fn):
+def create_csv_file(input_filename, output_filename, vocabulary):
     print("Creating CSV file at {}...".format(output_filename))
 
     actions = []
 
     for i, row in enumerate(helpers.create_iter_generator(input_filename)):
-        columns = json_dict_to_string(row)
-
-        output_row = {
-            'action': row["action"] + " " + columns,    # action is of type added/removed
-        }
-
-        action_transformed, action_len = convert_fn(output_row)
-        actions.append(action_transformed[:action_len])     # Remove padding :)
+        action_transformed = action_to_vector(row, vocabulary)
+        actions.append(action_transformed)
 
     output = pd.DataFrame(data={'action': actions})
     output.to_csv(output_filename, index=False, sep=";", quoting=csv.QUOTE_NONE, quotechar='')
@@ -138,9 +160,10 @@ def create_csv_file(input_filename, output_filename, convert_fn):
 
 if __name__ == "__main__":
     #vocabulary = create_and_save_vocabulary(TRAIN_PATH, TEST_PATH)
-    vocabulary = restore_vocabulary()
+    vocabulary = create_and_save_vocabulary(TRAIN_PATH)
+    #vocabulary = restore_vocabulary()
 
     create_csv_file(
         input_filename=CURRENT_PATH,
         output_filename=os.path.join(tf.flags.FLAGS.output_dir, OUTPUT_FILE),
-        convert_fn=functools.partial(extract_action, vocab=vocabulary))
+        vocabulary=vocabulary)
