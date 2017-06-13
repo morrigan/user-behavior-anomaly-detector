@@ -5,9 +5,8 @@ import matplotlib.pyplot as plt
 import numpy
 import pandas
 from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout
-from keras.layers import advanced_activations
+from keras.layers.embeddings import Embedding
 from keras.models import Sequential, model_from_json
-from keras.preprocessing import sequence
 from keras.utils import plot_model
 from sklearn.metrics import mean_squared_error
 
@@ -69,12 +68,12 @@ class LSTM:
 
     def create_model(self):
         model = Sequential()
-        #model.add(Embedding(input_dim=64123, output_dim=3, input_length=max_vector_length, mask_zero=True))
-        model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
+        model.add(Embedding(input_dim=self.settings.getint("Data", "vocabulary_size"),
+                            output_dim=3,
+                            input_length=self.settings.getint("LSTM", "max_vector_length")))#, mask_zero=True))
+        #model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
-        model.add(advanced_activations.LeakyReLU(alpha=0))   # clamp all values below 0 to 0
-        #model.add(Activation('relu'))
 
         return model
 
@@ -157,10 +156,13 @@ class LSTM:
     def transform_dataset(self, dataset):
         datasetX = self.pretransform_dataset(dataset)
 
+        # Normalize
+        datasetX = datasetX / float(self.settings.getint("Data", "vocabulary_size"))
+
         # For predicting
         datasetX, datasetY = helpers.get_real_predictions(datasetX)
         # reshape input to be [samples, time steps, features]
-        datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
+        #datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
 
         return datasetX, datasetY
 

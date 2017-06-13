@@ -58,7 +58,7 @@ def getScore(actions_scores, action_name):
 def calculate_rmse(dataset, predictions):
     rmse_totals = []
     for i in range(len(dataset)):
-        rmse = math.sqrt(mean_squared_error(dataset[i][0], predictions[i]))
+        rmse = math.sqrt(mean_squared_error(dataset[i], predictions[i]))
         rmse_totals.append(rmse)
 
     return rmse_totals

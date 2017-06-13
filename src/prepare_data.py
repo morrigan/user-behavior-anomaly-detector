@@ -20,19 +20,19 @@ tf.flags.DEFINE_string(
   "output_dir", os.path.abspath("../data"),
   "Output directory for TFrEcord files (default = '../data')")
 
-tf.flags.DEFINE_integer("max_vector_len", 30, "Maximum vector length")
+tf.flags.DEFINE_integer("max_vector_len", 17, "Maximum vector length")
 
 #----------------------------------------------------------------#
-TRAIN_PATH = os.path.join(FLAGS.input_dir, "test_new")
-TEST_PATH = os.path.join(FLAGS.input_dir, "20170609_Belma.log")
+TRAIN_PATH = os.path.join(FLAGS.input_dir, "osqueryd.results.log")
+TEST_PATH = os.path.join(FLAGS.input_dir, "train_new")
 
-CURRENT_PATH = TRAIN_PATH
-OUTPUT_FILE = "user1_train_new.csv"
+CURRENT_PATH = TEST_PATH
+OUTPUT_FILE = "user1_test_new.csv"
 #----------------------------------------------------------------#
 
 ### START VOCABULARY FUNCTIONS ###
 def tokenizer_fn(iterator):
-    return (x for x in iterator if x != "" and x != "0")
+  return (x.split(" ") for x in iterator)
 
 
 def create_vocabulary(train_path, test_path):
@@ -42,6 +42,7 @@ def create_vocabulary(train_path, test_path):
     input_iter = []
     for x in iter_generator:
         input = get_features(x)
+        input = " ".join(input)
         input_iter.append(input)
 
     if (test_path):
@@ -89,12 +90,9 @@ def transform_sentence(sequence, vocab_processor):
     if (type(sequence) is not list):
         sequence = [sequence]
 
+    sequence = [" ".join(sequence)]
 
-    print sequence
     vector = next(vocab_processor.transform(sequence)).tolist()
-    print "Vector:"
-    print vector
-    print "====="
     vector_len = len(next(vocab_processor._tokenizer(sequence)))
     vector = vector[:vector_len]
 
@@ -125,7 +123,10 @@ def get_features(line):
     index = structure.index(line["name"].replace('pack_external_pack_', ''))
 
     for i in range(len(columns)):
-        initial_vector[index + i] = columns[i]
+        if (columns[i] == ""):
+            initial_vector[index + i] = "0"
+        else:
+            initial_vector[index + i] = columns[i]
 
     return initial_vector
 
@@ -159,9 +160,10 @@ def create_csv_file(input_filename, output_filename, vocabulary):
 
 
 if __name__ == "__main__":
-    #vocabulary = create_and_save_vocabulary(TRAIN_PATH, TEST_PATH)
-    vocabulary = create_and_save_vocabulary(TRAIN_PATH)
-    #vocabulary = restore_vocabulary()
+    if (CURRENT_PATH == TRAIN_PATH):
+        vocabulary = create_and_save_vocabulary(TRAIN_PATH, TEST_PATH)
+    else:
+        vocabulary = restore_vocabulary()
 
     create_csv_file(
         input_filename=CURRENT_PATH,
