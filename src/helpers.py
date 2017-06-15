@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import numpy, os, time, math
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, normalize
 import ConfigParser
 import os.path
 from sklearn.metrics import mean_squared_error
@@ -100,7 +100,7 @@ def collection_values_to_array(dataset):
 ## Transform operations over data ##
 
 def scale(dataset):
-    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = StandardScaler() #MinMaxScaler(feature_range=(0, 1))
 
     dataset_scaled = scaler.fit_transform(numpy.float32(dataset))
 
@@ -120,6 +120,11 @@ def extract_hour(unixtime):
     hour = time.strftime("%H", time.gmtime(float(unixtime)))
     return hour
 
+def normalize(dataset):
+    # Normalize X, shape (n_samples, n_features)
+    return normalize(dataset)
+
+    # datasetX = datasetX / float(self.settings.getint("Data", "vocabulary_size"))
 
 ## File operations ##
 

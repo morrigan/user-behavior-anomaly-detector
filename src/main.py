@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, getopt, json
+import sys, getopt, json, os
 
 from lstm import LSTM
 from prepare_data import action_to_vector, restore_vocabulary, create_and_save_vocabulary, tokenizer_fn
@@ -10,6 +10,7 @@ from helpers import tail_F, create_iter_generator, readScores, getScore, padding
 LOG_FILE = "/var/log/osquery/osqueryd.results.log"
 ALGORITHM = "LSTM"
 CONFIG = "settings.ini"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Hide TensorFlow warnings
 #-------------------#
 # Unchangeable parameters
 has_new_data = False
@@ -84,7 +85,7 @@ if __name__ == "__main__":
             CONFIG = arg
 
     ## First, training on current log files
-    train_lstm()
+    #train_lstm()
 
     ## Watch for new logs
     logfiles = tail_F(LOG_FILE)

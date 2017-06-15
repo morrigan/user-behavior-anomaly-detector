@@ -20,7 +20,7 @@ tf.flags.DEFINE_string(
   "output_dir", os.path.abspath("../data"),
   "Output directory for TFrEcord files (default = '../data')")
 
-tf.flags.DEFINE_integer("max_vector_len", 17, "Maximum vector length")
+tf.flags.DEFINE_integer("max_vector_len", 16, "Maximum vector length")
 
 #----------------------------------------------------------------#
 TRAIN_PATH = os.path.join(FLAGS.input_dir, "osqueryd.results.log")
@@ -101,7 +101,7 @@ def transform_sentence(sequence, vocab_processor):
 
 def get_features(line):
     structure = ["added_or_removed", "hour", "usb_devices", "kernel_modules", "open_sockets", "open_sockets",
-                 "open_sockets", "open_sockets", "open_files", "logged_in_users", "logged_in_users", "shell_history",
+                 "open_sockets", "open_files", "logged_in_users", "logged_in_users", "shell_history",
                  "listening_ports", "arp_cache", "arp_cache", "syslog", "syslog"]
 
     # First feature

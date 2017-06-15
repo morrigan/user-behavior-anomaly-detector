@@ -4,7 +4,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy
 import pandas
-from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout
+from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout, BatchNormalization
 from keras.layers.embeddings import Embedding
 from keras.models import Sequential, model_from_json
 from keras.utils import plot_model
@@ -70,9 +70,13 @@ class LSTM:
         model = Sequential()
         model.add(Embedding(input_dim=self.settings.getint("Data", "vocabulary_size"),
                             output_dim=3,
-                            input_length=self.settings.getint("LSTM", "max_vector_length")))#, mask_zero=True))
+                            input_length=self.settings.getint("LSTM", "max_vector_length"),
+                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1])))#, mask_zero=True))
         #model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
-        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
+        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
+                            stateful=True,
+                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 3)))
+        model.add(BatchNormalization())
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
 
         return model
@@ -129,9 +133,6 @@ class LSTM:
         return train_dataset_array, test_dataset_array
 
 
-    """
-        Reshape needed because scaler didn't work with the forecasting dataset shape.
-    """
     def pretransform_dataset(self, dataset, reshape = False):
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
@@ -143,7 +144,7 @@ class LSTM:
             if (reshape == True):
                 dataset_padded = dataset_padded.reshape(-1, 1)
 
-            scaler, datasetX = helpers.scale(dataset_padded)
+            self.scaler, datasetX = helpers.scale(dataset_padded)
 
             if (reshape == True):
                 datasetX = datasetX.reshape(1, -1)
@@ -157,7 +158,7 @@ class LSTM:
         datasetX = self.pretransform_dataset(dataset)
 
         # Normalize
-        datasetX = datasetX / float(self.settings.getint("Data", "vocabulary_size"))
+        #helpers.normalize(datasetX)
 
         # For predicting
         datasetX, datasetY = helpers.get_real_predictions(datasetX)
@@ -171,9 +172,7 @@ class LSTM:
         Train dataset on a given model (existing or created) and make predictions.
         Return root mean squared error.
     """
-    def train_on_dataset(self, train_dataset_array, model):
-        trainX, trainY = self.transform_dataset(train_dataset_array)
-
+    def train_on_dataset(self, trainX, trainY, model):
         # Model training
         history = self.train_model(model, trainX, trainY)
 
@@ -188,7 +187,9 @@ class LSTM:
 
         # Make predictions
         trainPredict = model.predict(trainX)
-        # Calculate error
+        # trainPredict error
+        print trainY
+        print trainPredict
         rmse = helpers.calculate_rmse(trainX, trainPredict)
 
         return rmse
@@ -198,11 +199,10 @@ class LSTM:
         Use loaded model to run a test dataset on it.
         Return root mean squared error.
     """
-    def test_on_dataset(self, test_dataset_array, model):
-        testX, testY = self.transform_dataset(test_dataset_array)
-
+    def test_on_dataset(self, testX, testY, model):
         # Make predictions
         testPredict = model.predict(testX)
+
         # Calculate error
         rmse = helpers.calculate_rmse(testX, testPredict)
 
@@ -218,11 +218,17 @@ class LSTM:
         if (len(train_dataset_array) == 0 and len(test_dataset_array) == 0):
             train_dataset_array, test_dataset_array = self.load_datasets()
 
+        # Transform dataset
+        trainX, trainY = self.transform_dataset(train_dataset_array)
+        testX, testY = self.transform_dataset(test_dataset_array)
+
+        self.input_shape = trainX.shape
+
         model = self.get_model()
 
         # Model training
-        rmse_train =  self.train_on_dataset(train_dataset_array, model)
-        rmse_test =  self.test_on_dataset(test_dataset_array, model)
+        rmse_train =  self.train_on_dataset(trainX, trainY, model)
+        rmse_test =  self.test_on_dataset(testX, testY, model)
 
         # Plotting
         plt.plot(rmse_train, label='Train')
