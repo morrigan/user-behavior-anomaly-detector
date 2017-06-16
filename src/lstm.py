@@ -4,9 +4,8 @@ import math
 import matplotlib.pyplot as plt
 import numpy
 import pandas
-from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout, BatchNormalization
-from keras.layers.embeddings import Embedding
-from keras.models import Sequential, model_from_json
+from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout, BatchNormalization, Input, Embedding, concatenate
+from keras.models import Sequential, model_from_json, Model
 from keras.utils import plot_model
 from sklearn.metrics import mean_squared_error
 
@@ -67,17 +66,35 @@ class LSTM:
 
 
     def create_model(self):
-        model = Sequential()
+        """model = Sequential()
         model.add(Embedding(input_dim=self.settings.getint("Data", "vocabulary_size"),
-                            output_dim=3,
+                            output_dim=30,
                             input_length=self.settings.getint("LSTM", "max_vector_length"),
                             batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1])))#, mask_zero=True))
-        #model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
+        model.add(Masking(mask_value=3))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
                             stateful=True,
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 3)))
+                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 30)))
         model.add(BatchNormalization())
-        model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
+        model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))"""
+
+        structure = ["added_or_removed", "hour", "usb_devices", "kernel_modules", "open_sockets", "open_sockets",
+                     "open_sockets", "open_files", "logged_in_users", "logged_in_users", "shell_history",
+                     "listening_ports", "arp_cache", "arp_cache", "syslog", "syslog"]
+
+        added_or_removed = Input(shape=(1,16), name='added_or_removed')
+        hour = Input(shape=(1,16), name='hour')
+
+        usb_devices = Input(shape=(1,16), name='usb_devices')
+        kernel_modules = Input(shape=(1,16), name='shell_history')
+
+        x = concatenate([hour, added_or_removed, usb_devices, kernel_modules])
+        output = LSTM_CELL(24)(x)
+
+        main_output = Dense(4, name='main_output')(output)
+
+        model = Model(inputs=[added_or_removed, hour, usb_devices, kernel_modules],
+                      outputs=[main_output])
 
         return model
 
@@ -99,7 +116,7 @@ class LSTM:
 
 
     def train_model(self, model, trainX, trainY, verbose=2):
-        model.add(Dropout(self.settings.getfloat("LSTM", "dropout")))
+        #model.add(Dropout(self.settings.getfloat("LSTM", "dropout")))
         return model.fit(trainX, trainY, epochs=self.settings.getint("LSTM", "epochs"),
                          batch_size=self.settings.getint("LSTM", "batch_size"), verbose=verbose, shuffle=False)
 
@@ -164,6 +181,8 @@ class LSTM:
         datasetX, datasetY = helpers.get_real_predictions(datasetX)
         # reshape input to be [samples, time steps, features]
         #datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
+
+        datasetX = datasetX[:,:4]
 
         return datasetX, datasetY
 
