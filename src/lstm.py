@@ -75,8 +75,11 @@ class LSTM:
         #model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
                             stateful=True,
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 3)))
-        model.add(BatchNormalization())
+                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 3),
+                            return_sequences=True))
+        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
+        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
+        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
 
         return model
@@ -173,12 +176,15 @@ class LSTM:
         Return root mean squared error.
     """
     def train_on_dataset(self, trainX, trainY, model):
+        # Visualize model structure
+        if (self.settings.getboolean("LSTM", "visualize_model") == True):
+            plot_model(model, to_file='model.png')
+
         # Model training
         history = self.train_model(model, trainX, trainY)
 
-        # Visualize model
+        # Visualize model training
         if (self.settings.getboolean("LSTM", "visualize_model") == True):
-            plot_model(model, to_file='model.png')
             self.visualize_model_training(history)
 
         # Save model
