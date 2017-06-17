@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import numpy
 import pandas
 from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout, BatchNormalization
-from keras.layers.embeddings import Embedding
 from keras.models import Sequential, model_from_json
 from keras.utils import plot_model
 from sklearn.metrics import mean_squared_error
@@ -17,25 +16,24 @@ class LSTM:
         self.settings = helpers.getConfig(config_file)
 
     def visualize_model_training(self, history):
-        # list all data in history
-        print history.history
-
         # summarize history for accuracy
-        plt.plot(history.history['acc'])
-        #plt.plot(history.history['val_acc'])
+        plt.plot(history.history['acc'], label="Train")
+        if ('val_acc' in history.history):
+            plt.plot(history.history['val_acc'], label="Test")
         plt.title('model accuracy')
         plt.ylabel('accuracy')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
+        plt.legend(loc='upper left')
         plt.show()
 
         # summarize history for loss
-        plt.plot(history.history['loss'])
-        #plt.plot(history.history['val_loss'])
+        plt.plot(history.history['loss'], label="Train")
+        if ('val_loss' in history.history):
+            plt.plot(history.history['val_loss'], label="Test")
         plt.title('model loss')
         plt.ylabel('loss')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
+        plt.legend(loc='upper left')
         plt.show()
 
 
@@ -68,17 +66,12 @@ class LSTM:
 
     def create_model(self):
         model = Sequential()
-        model.add(Embedding(input_dim=self.settings.getint("Data", "vocabulary_size"),
-                            output_dim=3,
-                            input_length=self.settings.getint("LSTM", "max_vector_length"),
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1])))#, mask_zero=True))
         #model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
                             stateful=True,
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 3),
+                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"),
+                                               self.input_shape[1], self.settings.getint("LSTM", "max_vector_length")),
                             return_sequences=True))
-        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
-        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
 
@@ -101,9 +94,11 @@ class LSTM:
         return model
 
 
-    def train_model(self, model, trainX, trainY, verbose=2):
+    def train_model(self, model, trainX, trainY, validation_data = None, verbose=2):
         model.add(Dropout(self.settings.getfloat("LSTM", "dropout")))
-        return model.fit(trainX, trainY, epochs=self.settings.getint("LSTM", "epochs"),
+        return model.fit(trainX, trainY,
+                         validation_data=validation_data,
+                         epochs=self.settings.getint("LSTM", "epochs"),
                          batch_size=self.settings.getint("LSTM", "batch_size"), verbose=verbose, shuffle=False)
 
 
@@ -166,7 +161,7 @@ class LSTM:
         # For predicting
         datasetX, datasetY = helpers.get_real_predictions(datasetX)
         # reshape input to be [samples, time steps, features]
-        #datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
+        datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
 
         return datasetX, datasetY
 
@@ -194,8 +189,6 @@ class LSTM:
         # Make predictions
         trainPredict = model.predict(trainX)
         # trainPredict error
-        print trainY
-        print trainPredict
         rmse = helpers.calculate_rmse(trainX, trainPredict)
 
         return rmse
@@ -216,6 +209,23 @@ class LSTM:
 
 
     """
+        Take both train and validation test through fitting to get
+        validation set accuracy.
+    """
+    def train_validate_dataset(self, trainX, trainY, testX, testY, model):
+        # Visualize model structure
+        if (self.settings.getboolean("LSTM", "visualize_model") == True):
+            plot_model(model, to_file='model.png')
+
+        # Model training
+        history = self.train_model(model, trainX, trainY, validation_data=(testX, testY))
+
+        # Visualize model training
+        if (self.settings.getboolean("LSTM", "visualize_model") == True):
+            self.visualize_model_training(history)
+
+
+    """
         Use preprocessed dataset file for training and testing.
         Use model related configuration from settings.ini file.
     """
@@ -232,14 +242,18 @@ class LSTM:
 
         model = self.get_model()
 
+        #self.train_validate_dataset(trainX, trainY, testX, testY, model)
+
         # Model training
         rmse_train =  self.train_on_dataset(trainX, trainY, model)
         rmse_test =  self.test_on_dataset(testX, testY, model)
 
         # Plotting
-        plt.plot(rmse_train, label='Train')
-        plt.plot(rmse_test, label='Test')
+        f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+        ax1.plot(rmse_train, label='Train')
+        ax2.plot(rmse_test, label='Test')
         plt.xlabel('samples')
         plt.ylabel('error')
-        plt.legend(loc='upper right')
+        ax1.legend(loc='upper right')
+        ax2.legend(loc='upper right')
         plt.show()
