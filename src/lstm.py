@@ -8,6 +8,8 @@ from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout, BatchNormal
 from keras.models import Sequential, model_from_json, Model
 from keras.utils import plot_model
 from sklearn.metrics import mean_squared_error
+from keras import optimizers
+
 
 import helpers
 
@@ -16,25 +18,24 @@ class LSTM:
         self.settings = helpers.getConfig(config_file)
 
     def visualize_model_training(self, history):
-        # list all data in history
-        print history.history
-
         # summarize history for accuracy
-        plt.plot(history.history['acc'])
-        #plt.plot(history.history['val_acc'])
+        plt.plot(history.history['acc'], label="Train")
+        if ('val_acc' in history.history):
+            plt.plot(history.history['val_acc'], label="Test")
         plt.title('model accuracy')
         plt.ylabel('accuracy')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
+        plt.legend(loc='upper left')
         plt.show()
 
         # summarize history for loss
-        plt.plot(history.history['loss'])
-        #plt.plot(history.history['val_loss'])
+        plt.plot(history.history['loss'], label="Train")
+        if ('val_loss' in history.history):
+            plt.plot(history.history['val_loss'], label="Test")
         plt.title('model loss')
         plt.ylabel('loss')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
+        plt.legend(loc='upper left')
         plt.show()
 
 
@@ -68,33 +69,18 @@ class LSTM:
     def create_model(self):
         """model = Sequential()
         model.add(Embedding(input_dim=self.settings.getint("Data", "vocabulary_size"),
-                            output_dim=30,
+                            output_dim=100,
                             input_length=self.settings.getint("LSTM", "max_vector_length"),
                             batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1])))#, mask_zero=True))
         model.add(Masking(mask_value=3))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
                             stateful=True,
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 30)))
-        model.add(BatchNormalization())
-        model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))"""
-
-        structure = ["added_or_removed", "hour", "usb_devices", "kernel_modules", "open_sockets", "open_sockets",
-                     "open_sockets", "open_files", "logged_in_users", "logged_in_users", "shell_history",
-                     "listening_ports", "arp_cache", "arp_cache", "syslog", "syslog"]
-
-        added_or_removed = Input(shape=(1,16), name='added_or_removed')
-        hour = Input(shape=(1,16), name='hour')
-
-        usb_devices = Input(shape=(1,16), name='usb_devices')
-        kernel_modules = Input(shape=(1,16), name='shell_history')
-
-        x = concatenate([hour, added_or_removed, usb_devices, kernel_modules])
-        output = LSTM_CELL(24)(x)
-
-        main_output = Dense(4, name='main_output')(output)
-
-        model = Model(inputs=[added_or_removed, hour, usb_devices, kernel_modules],
-                      outputs=[main_output])
+                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 100),
+                            return_sequences=True))
+        #model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
+        #model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
+        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
+        model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
 
         return model
 
@@ -109,7 +95,8 @@ class LSTM:
             model = self.load_model()
         else:
             model = self.create_model()
-        model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
+        #sgd = optimizers.SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(loss="mean_squared_error", optimizer='adam', metrics=['accuracy'])
         model.summary()
 
         return model
@@ -153,7 +140,7 @@ class LSTM:
     def pretransform_dataset(self, dataset, reshape = False):
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
-        dataset_padded = helpers.padding(dataset, max_vector_length)  # shape (n, 30)
+        dataset_padded = helpers.padding(dataset, max_vector_length)
 
         assert (dataset_padded.shape[1] == max_vector_length)
 
@@ -192,12 +179,15 @@ class LSTM:
         Return root mean squared error.
     """
     def train_on_dataset(self, trainX, trainY, model):
+        # Visualize model structure
+        if (self.settings.getboolean("LSTM", "visualize_model") == True):
+            plot_model(model, to_file='model.png')
+
         # Model training
         history = self.train_model(model, trainX, trainY)
 
-        # Visualize model
+        # Visualize model training
         if (self.settings.getboolean("LSTM", "visualize_model") == True):
-            plot_model(model, to_file='model.png')
             self.visualize_model_training(history)
 
         # Save model
@@ -250,9 +240,11 @@ class LSTM:
         rmse_test =  self.test_on_dataset(testX, testY, model)
 
         # Plotting
-        plt.plot(rmse_train, label='Train')
-        plt.plot(rmse_test, label='Test')
+        f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+        ax1.plot(rmse_train, label='Train')
+        ax2.plot(rmse_test, label='Test')
         plt.xlabel('samples')
         plt.ylabel('error')
-        plt.legend(loc='upper right')
+        ax1.legend(loc='upper right')
+        ax2.legend(loc='upper right')
         plt.show()
