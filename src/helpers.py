@@ -87,6 +87,14 @@ def get_real_predictions(dataset):
 
     return numpy.array(dataX), numpy.array(dataY)
 
+def get_prediction_output(dataset):
+    dataY = {}
+    for action_name, actions in dataset.iteritems():
+        for i in range(len(actions) - 1):
+            dataY[action_name] = actions[i+1]
+
+    return dataset, dataY
+
 
 def collection_values_to_array(dataset):
     dataset = numpy.array(dataset)
@@ -173,64 +181,3 @@ def tail_F(some_file):
         except IOError:
             yield ''
 
-
-
-## For parsing older osquery results without new shell_history CASE query
-def _parse_shell_history(columns):
-    columns = columns.split(" ")
-    if (len(columns) == 1 and type(columns[0]) == int):
-        # New osquery case shell_history query
-        return columns
-
-    command = columns[0]
-
-    if (command == 'wget'):
-        return 1
-    elif (command == 'rm'):
-        return 2
-    elif (command.startswith('./')):
-        return 3
-    elif (command == 'ls'):
-        return 4
-    elif (command == 'cat'):
-        return 5
-    elif (command == 'cp'):
-        return 6
-    elif (command == 'mv'):
-        return 7
-    elif (command == 'cd'):
-        return 8
-    elif (command == 'find'):
-        return 9
-    elif (command == 'locate'):
-        return 10
-    elif (command == 'grep'):
-        return 11
-    elif (command == 'ssh'):
-        return 12
-    elif (command == 'pwd'):
-        return 13
-    elif (command == 'passwd'):
-        return 14
-    elif (command == 'mkdir'):
-        return 15
-    elif (command == 'touch'):
-        return 16
-    elif (command == 'tail'):
-        return 17
-    elif (command == 'head'):
-        return 18
-    elif (command == 'less'):
-        return 19
-    elif (command == 'su'):
-        return 20
-    elif (command == 'chmod'):
-        return 21
-    elif (command == 'echo'):
-        return 22
-    elif (command == 'ping'):
-        return 23
-    elif (command == 'open'):
-        return 24
-    else:
-        return 0

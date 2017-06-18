@@ -67,20 +67,23 @@ class LSTM:
 
 
     def create_model(self):
-        """model = Sequential()
-        model.add(Embedding(input_dim=self.settings.getint("Data", "vocabulary_size"),
-                            output_dim=100,
-                            input_length=self.settings.getint("LSTM", "max_vector_length"),
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1])))#, mask_zero=True))
-        model.add(Masking(mask_value=3))
-        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
-                            stateful=True,
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 100),
-                            return_sequences=True))
-        #model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
-        #model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
-        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
-        model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
+        added_or_removed = Input(shape=(1,1), name='added_or_removed')
+        added_or_removed_output = LSTM_CELL(1, name='added_or_removed_output')(added_or_removed)
+
+        hour = Input(shape=(1,1), name='hour')
+        hour_output = LSTM_CELL(1, name='hour_output')(hour)
+
+        usb_devices = Input(shape=(1,1), name='usb_devices')
+        usb_devices_output = LSTM_CELL(1, name='usb_devices_output')(usb_devices)
+
+        kernel_modules = Input(shape=(1,1), name='kernel_modules')
+        kernel_modules_output = LSTM_CELL(1, name='kernel_modules_output')(kernel_modules)
+
+        x = concatenate([added_or_removed, hour, usb_devices, kernel_modules])
+        main_output = Dense(4, name='main_output')(x)
+
+        model = Model(inputs=[added_or_removed, hour, usb_devices, kernel_modules],
+                      outputs = [added_or_removed_output, hour_output, usb_devices_output, kernel_modules_output])
 
         return model
 
@@ -138,6 +141,12 @@ class LSTM:
 
 
     def pretransform_dataset(self, dataset, reshape = False):
+        h = numpy.reshape(numpy.array([[0], [1], [3]]), (3, 1, 1))
+        a = {'hour': h,
+             'added_or_removed': h,
+             'kernel_modules': h,
+             'usb_devices': h}
+        return a
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
         dataset_padded = helpers.padding(dataset, max_vector_length)
@@ -153,7 +162,19 @@ class LSTM:
             if (reshape == True):
                 datasetX = datasetX.reshape(1, -1)
         else:
-            datasetX = dataset_padded
+            datasetX = dataset_padded[:,:4]
+            datasetX_new = []
+            for action in datasetX:
+                action_new = []
+                for column in action:
+                    action_new.append([column])
+                datasetX_new.append(action_new)
+
+            datasetX = numpy.array(datasetX_new)
+            print datasetX.shape
+            datasetX = datasetX.reshape(datasetX.shape[0], datasetX.shape[1], 1)
+            datasetX = datasetX.reshape(-1, 1)
+
 
         return datasetX
 
@@ -165,11 +186,9 @@ class LSTM:
         #helpers.normalize(datasetX)
 
         # For predicting
-        datasetX, datasetY = helpers.get_real_predictions(datasetX)
+        datasetX, datasetY = helpers.get_prediction_output(datasetX)
         # reshape input to be [samples, time steps, features]
         #datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
-
-        datasetX = datasetX[:,:4]
 
         return datasetX, datasetY
 
@@ -230,8 +249,6 @@ class LSTM:
         # Transform dataset
         trainX, trainY = self.transform_dataset(train_dataset_array)
         testX, testY = self.transform_dataset(test_dataset_array)
-
-        self.input_shape = trainX.shape
 
         model = self.get_model()
 
