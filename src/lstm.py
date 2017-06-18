@@ -9,6 +9,8 @@ from keras.layers.embeddings import Embedding
 from keras.models import Sequential, model_from_json
 from keras.utils import plot_model
 from sklearn.metrics import mean_squared_error
+from keras import optimizers
+
 
 import helpers
 
@@ -17,25 +19,24 @@ class LSTM:
         self.settings = helpers.getConfig(config_file)
 
     def visualize_model_training(self, history):
-        # list all data in history
-        print history.history
-
         # summarize history for accuracy
-        plt.plot(history.history['acc'])
-        #plt.plot(history.history['val_acc'])
+        plt.plot(history.history['acc'], label="Train")
+        if ('val_acc' in history.history):
+            plt.plot(history.history['val_acc'], label="Test")
         plt.title('model accuracy')
         plt.ylabel('accuracy')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
+        plt.legend(loc='upper left')
         plt.show()
 
         # summarize history for loss
-        plt.plot(history.history['loss'])
-        #plt.plot(history.history['val_loss'])
+        plt.plot(history.history['loss'], label="Train")
+        if ('val_loss' in history.history):
+            plt.plot(history.history['val_loss'], label="Test")
         plt.title('model loss')
         plt.ylabel('loss')
         plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
+        plt.legend(loc='upper left')
         plt.show()
 
 
@@ -69,16 +70,16 @@ class LSTM:
     def create_model(self):
         model = Sequential()
         model.add(Embedding(input_dim=self.settings.getint("Data", "vocabulary_size"),
-                            output_dim=3,
+                            output_dim=100,
                             input_length=self.settings.getint("LSTM", "max_vector_length"),
                             batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1])))#, mask_zero=True))
         #model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
                             stateful=True,
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 3),
+                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"), self.input_shape[1], 100),
                             return_sequences=True))
-        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
-        model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
+        #model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
+        #model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"), return_sequences=True))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
 
@@ -95,7 +96,8 @@ class LSTM:
             model = self.load_model()
         else:
             model = self.create_model()
-        model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
+        #sgd = optimizers.SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(loss="mean_squared_error", optimizer='adam', metrics=['accuracy'])
         model.summary()
 
         return model
@@ -139,7 +141,7 @@ class LSTM:
     def pretransform_dataset(self, dataset, reshape = False):
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
-        dataset_padded = helpers.padding(dataset, max_vector_length)  # shape (n, 30)
+        dataset_padded = helpers.padding(dataset, max_vector_length)
 
         assert (dataset_padded.shape[1] == max_vector_length)
 
@@ -237,9 +239,11 @@ class LSTM:
         rmse_test =  self.test_on_dataset(testX, testY, model)
 
         # Plotting
-        plt.plot(rmse_train, label='Train')
-        plt.plot(rmse_test, label='Test')
+        f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+        ax1.plot(rmse_train, label='Train')
+        ax2.plot(rmse_test, label='Test')
         plt.xlabel('samples')
         plt.ylabel('error')
-        plt.legend(loc='upper right')
+        ax1.legend(loc='upper right')
+        ax2.legend(loc='upper right')
         plt.show()
