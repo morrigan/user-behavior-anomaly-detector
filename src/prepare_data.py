@@ -101,7 +101,7 @@ def transform_sentence(sequence, vocab_processor):
 
 def get_features(line):
     structure = ["added_or_removed", "hour", "usb_devices", "kernel_modules", "open_sockets", "open_sockets",
-                 "open_sockets", "open_files", "logged_in_users", "logged_in_users", "shell_history",
+                 "processes", "open_files", "logged_in_users", "logged_in_users", "shell_history",
                  "listening_ports", "arp_cache", "arp_cache", "syslog", "syslog"]
 
     # First feature
