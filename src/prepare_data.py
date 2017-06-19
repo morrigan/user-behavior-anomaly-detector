@@ -23,11 +23,11 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_integer("max_vector_len", 16, "Maximum vector length")
 
 #----------------------------------------------------------------#
-TRAIN_PATH = os.path.join(FLAGS.input_dir, "osqueryd.results.log")
-TEST_PATH = os.path.join(FLAGS.input_dir, "train_new")
+TRAIN_PATH = os.path.join(FLAGS.input_dir, "20170618_Belma.log")
+TEST_PATH = os.path.join(FLAGS.input_dir, "user1_unauthorized.log")
 
 CURRENT_PATH = TEST_PATH
-OUTPUT_FILE = "user1_test_new.csv"
+OUTPUT_FILE = "user1_test_C.csv"
 #----------------------------------------------------------------#
 
 ### START VOCABULARY FUNCTIONS ###
@@ -101,7 +101,7 @@ def transform_sentence(sequence, vocab_processor):
 
 def get_features(line):
     structure = ["added_or_removed", "hour", "usb_devices", "kernel_modules", "open_sockets", "open_sockets",
-                 "open_sockets", "open_files", "logged_in_users", "logged_in_users", "shell_history",
+                 "processes", "open_files", "logged_in_users", "logged_in_users", "shell_history",
                  "listening_ports", "arp_cache", "arp_cache", "syslog", "syslog"]
 
     # First feature
