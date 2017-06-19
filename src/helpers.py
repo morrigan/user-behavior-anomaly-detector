@@ -88,10 +88,14 @@ def get_real_predictions(dataset):
     return numpy.array(dataX), numpy.array(dataY)
 
 def get_prediction_output(dataset):
-    dataY = {}
-    for action_name, actions in dataset.iteritems():
-        for i in range(len(actions) - 1):
-            dataY[action_name] = actions[i+1]
+    dataY = []
+    for feature in dataY:
+        print feature
+        exit()
+        feature_actions = []
+        for i in range(len(feature) - 1):
+            feature_actions.append(feature[i+1])
+        dataY.append(feature_actions)
 
     return dataset, dataY
 

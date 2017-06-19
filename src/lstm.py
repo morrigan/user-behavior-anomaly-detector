@@ -107,7 +107,7 @@ class LSTM:
 
     def train_model(self, model, trainX, trainY, verbose=2):
         #model.add(Dropout(self.settings.getfloat("LSTM", "dropout")))
-        return model.fit(trainX, trainY, epochs=self.settings.getint("LSTM", "epochs"),
+        return model.fit(trainX, trainX, epochs=self.settings.getint("LSTM", "epochs"),
                          batch_size=self.settings.getint("LSTM", "batch_size"), verbose=verbose, shuffle=False)
 
 
@@ -141,12 +141,6 @@ class LSTM:
 
 
     def pretransform_dataset(self, dataset, reshape = False):
-        h = numpy.reshape(numpy.array([[0], [1], [3]]), (3, 1, 1))
-        a = {'hour': h,
-             'added_or_removed': h,
-             'kernel_modules': h,
-             'usb_devices': h}
-        return a
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
         dataset_padded = helpers.padding(dataset, max_vector_length)
@@ -180,7 +174,10 @@ class LSTM:
 
 
     def transform_dataset(self, dataset):
-        datasetX = self.pretransform_dataset(dataset)
+        #datasetX = self.pretransform_dataset(dataset)
+
+        h = numpy.reshape(numpy.array([[0], [1], [3], [3]]), (4, 1))
+        datasetX = numpy.array([h, h, h, h])
 
         # Normalize
         #helpers.normalize(datasetX)
@@ -189,6 +186,11 @@ class LSTM:
         datasetX, datasetY = helpers.get_prediction_output(datasetX)
         # reshape input to be [samples, time steps, features]
         #datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
+
+
+        print datasetX
+        print datasetX.shape
+        print datasetY
 
         return datasetX, datasetY
 
