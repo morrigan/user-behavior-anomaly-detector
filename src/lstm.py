@@ -68,11 +68,10 @@ class LSTM:
         model = Sequential()
         #model.add(Masking(mask_value=0, input_shape=(1, self.settings.getint("LSTM", "max_vector_length"))))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers"),
-                            stateful=True,
-                            batch_input_shape=(self.settings.getint("LSTM", "batch_size"),
-                                               self.input_shape[1], self.settings.getint("LSTM", "max_vector_length")),
+                            input_shape=(self.settings.getint("LSTM", "time_series"), self.settings.getint("LSTM", "max_vector_length")),
                             return_sequences=True))
         model.add(LSTM_CELL(self.settings.getint("LSTM", "hidden_layers")))
+        model.add(Dropout(self.settings.getfloat("LSTM", "dropout")))
         model.add(Dense(self.settings.getint('LSTM', 'max_vector_length')))
 
         return model
@@ -95,7 +94,6 @@ class LSTM:
 
 
     def train_model(self, model, trainX, trainY, validation_data = None, verbose=2):
-        model.add(Dropout(self.settings.getfloat("LSTM", "dropout")))
         return model.fit(trainX, trainY,
                          validation_data=validation_data,
                          epochs=self.settings.getint("LSTM", "epochs"),
@@ -134,7 +132,7 @@ class LSTM:
     def pretransform_dataset(self, dataset, reshape = False):
         max_vector_length = self.settings.getint("LSTM", "max_vector_length")
 
-        dataset_padded = helpers.padding(dataset, max_vector_length)  # shape (n, 30)
+        dataset_padded = helpers.padding(dataset, max_vector_length)
 
         assert (dataset_padded.shape[1] == max_vector_length)
 
@@ -159,9 +157,7 @@ class LSTM:
         #helpers.normalize(datasetX)
 
         # For predicting
-        datasetX, datasetY = helpers.get_real_predictions(datasetX)
-        # reshape input to be [samples, time steps, features]
-        datasetX = numpy.reshape(datasetX, (datasetX.shape[0], 1, datasetX.shape[1]))
+        datasetX, datasetY = helpers.convert_to_timeseries(datasetX, self.settings.getint("LSTM", "time_series"))
 
         return datasetX, datasetY
 
@@ -176,15 +172,16 @@ class LSTM:
             plot_model(model, to_file='model.png')
 
         # Model training
-        history = self.train_model(model, trainX, trainY)
+        if (self.settings.getboolean("LSTM", "load_existing_model") == False):
+            history = self.train_model(model, trainX, trainY)
 
-        # Visualize model training
-        if (self.settings.getboolean("LSTM", "visualize_model") == True):
-            self.visualize_model_training(history)
+            # Visualize model training
+            if (self.settings.getboolean("LSTM", "visualize_model") == True):
+                self.visualize_model_training(history)
 
-        # Save model
-        if (self.settings.getboolean("LSTM", "save_training_model") == True):
-            self.save_model(model)
+            # Save model
+            if (self.settings.getboolean("LSTM", "save_training_model") == True):
+                self.save_model(model)
 
         # Make predictions
         trainPredict = model.predict(trainX)
@@ -229,7 +226,7 @@ class LSTM:
         Use preprocessed dataset file for training and testing.
         Use model related configuration from settings.ini file.
     """
-    def train_on_datasets(self, train_dataset_array = [], test_dataset_array = []):
+    def run_on_datasets(self, train_dataset_array = [], test_dataset_array = []):
         # If none given, load datasets from .csv defined in settings
         if (len(train_dataset_array) == 0 and len(test_dataset_array) == 0):
             train_dataset_array, test_dataset_array = self.load_datasets()

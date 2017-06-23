@@ -67,7 +67,7 @@ def calculate_rmse(dataset, predictions):
 """
     Convert an array of values into a dataset matrix
 """
-def convert_dataset(dataset, look_back=3):
+def convert_to_timeseries(dataset, look_back=3):
     dataX, dataY = [], []
     for i in range(len(dataset) - look_back - 1):
         a = dataset[i:(i + look_back)]
@@ -75,7 +75,12 @@ def convert_dataset(dataset, look_back=3):
         dataX.append(a)
         dataY.append(b)
 
-    return numpy.array(dataX), numpy.array(dataY)
+    dataX, dataY = numpy.array(dataX), numpy.array(dataY)
+
+    # reshape input to be [samples, time steps, features]
+    #dataX = numpy.reshape(dataX, (dataX.shape[0], look_back, dataX.shape[1]))
+
+    return dataX, dataY
 
 
 def get_real_predictions(dataset):
