@@ -8,6 +8,8 @@ from keras.layers import LSTM as LSTM_CELL, Dense, Masking, Dropout, BatchNormal
 from keras.models import Sequential, model_from_json
 from keras.utils import plot_model
 from sklearn.metrics import mean_squared_error
+from keras import optimizers
+
 
 import helpers
 
@@ -87,7 +89,8 @@ class LSTM:
             model = self.load_model()
         else:
             model = self.create_model()
-        model.compile(loss="mean_squared_error", optimizer="adam", metrics=['accuracy'])
+        #sgd = optimizers.SGD(lr=0.0001, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(loss="mean_squared_error", optimizer='adam', metrics=['accuracy'])
         model.summary()
 
         return model

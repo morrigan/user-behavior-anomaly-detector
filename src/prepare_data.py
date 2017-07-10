@@ -23,11 +23,11 @@ tf.flags.DEFINE_string(
 tf.flags.DEFINE_integer("max_vector_len", 16, "Maximum vector length")
 
 #----------------------------------------------------------------#
-TRAIN_PATH = os.path.join(FLAGS.input_dir, "osqueryd.results.log")
-TEST_PATH = os.path.join(FLAGS.input_dir, "train_new")
+TRAIN_PATH = os.path.join(FLAGS.input_dir, "20170618_Belma.log")
+TEST_PATH = os.path.join(FLAGS.input_dir, "user1_unauthorized.log")
 
 CURRENT_PATH = TEST_PATH
-OUTPUT_FILE = "user1_test_new.csv"
+OUTPUT_FILE = "user1_test_C.csv"
 #----------------------------------------------------------------#
 
 ### START VOCABULARY FUNCTIONS ###
